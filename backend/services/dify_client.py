@@ -1,8 +1,12 @@
 """Dify 对话 API 封装。"""
 
+import logging
+
 from httpx import AsyncClient, HTTPError
 
 from backend.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class DifyClient:
@@ -38,7 +42,7 @@ class DifyClient:
                 resp.raise_for_status()
                 return resp.json()
         except HTTPError as e:
-            print(f"[DifyClient] 请求失败: {e}")
+            logger.error("[DifyClient] 请求失败: %s", e, exc_info=True)
             return None
 
 

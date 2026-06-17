@@ -1,8 +1,12 @@
 """管理后台 Dify API 封装。"""
 
+import logging
+
 from httpx import AsyncClient, HTTPError
 
 from backend.config import settings
+
+logger = logging.getLogger(__name__)
 
 
 class DifyAdminClient:
@@ -31,7 +35,7 @@ class DifyAdminClient:
                     resp.raise_for_status()
                     return resp.json()
         except (HTTPError, FileNotFoundError) as e:
-            print(f"[DifyAdmin] 上传文档失败: {e}")
+            logger.error("[DifyAdmin] 上传文档失败: %s", e, exc_info=True)
             return None
 
 

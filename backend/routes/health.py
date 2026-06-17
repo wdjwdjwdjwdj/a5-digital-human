@@ -2,7 +2,15 @@
 
 from fastapi import APIRouter
 
+from backend.config import settings
+
 router = APIRouter(tags=["健康检查"])
+
+
+@router.get("/health")
+async def health() -> dict:
+    """服务健康状态检查。"""
+    return {"status": "ok", "env": settings.env}
 
 
 @router.get("/ping")

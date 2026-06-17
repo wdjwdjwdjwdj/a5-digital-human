@@ -276,9 +276,11 @@
     showTyping(true);
 
     try {
-      const formData = new FormData();
-      formData.append('query', text);
-      const resp = await fetch('/chat/message', { method: 'POST', body: formData });
+      const resp = await fetch('/chat/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: text }),
+      });
       const data = await resp.json();
       showTyping(false);
       addMessage(data.reply, 'bot', data.audio_url || null);
