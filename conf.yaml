@@ -1,14 +1,35 @@
-# LLM
-llm_provider: "deepseek"
-llm_model: "deepseek-chat"
-llm_base_url: "https://api.deepseek.com/v1"
+# ============================================
+# A5-景区导览AI数字人 核心配置文件
+# ${VAR} 由 envsubst 从 .env 自动读取
+# ============================================
 
-# TTS
-tts_provider: "edge-tts"
-tts_voice: "zh-CN-XiaoxiaoNeural"
+llm:
+  provider: deepseek
+  api_key: ${DEEPSEEK_API_KEY}
+  base_url: https://api.deepseek.com/v1
+  model: deepseek-chat
+  temperature: 0.7
+  max_tokens: 512
 
-# ASR
-asr_provider: "funasr"
+tts:
+  provider: edge-tts
+  voice: zh-CN-XiaoxiaoNeural
+  rate: +0%
+  volume: +0%
+  pitch: +0Hz
 
-# Live2D
-live2d_model: "frontend/static/live2d/default"
+asr:
+  provider: funasr
+  model: paraformer-zh
+  device: cpu
+  vad: true
+
+live2d:
+  model_path: frontend/static/live2d/default
+  motion_sync: volume
+  sensitivity: 0.8
+
+server:
+  host: 0.0.0.0
+  port: 8000
+  cors_origins: ["*"]

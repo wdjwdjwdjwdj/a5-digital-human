@@ -115,6 +115,9 @@ python scripts/test_accuracy.py     # 目标 ≥ 90%
 
 # 预下载 ASR / Live2D 模型
 python scripts/download_models.py
+
+# 推送到 GitHub（每次编码后必须执行）
+git add -A && git commit -m "type(scope): description" && git push
 ```
 
 ---
@@ -160,6 +163,7 @@ python scripts/download_models.py
 | 核心对话测试 | ≥ 5 用例 | `pytest tests/test_chat_chain.py -v` |
 | 文件编码 | UTF-8 without BOM | `file *.py` 检查 |
 | 调试语句残留 | 零残留 | 全局搜 `print(` `console.log(` |
+| **代码推送** | **每次编码后必推** | `git add -A && git commit && git push` |
 
 ---
 

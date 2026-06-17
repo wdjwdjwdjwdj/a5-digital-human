@@ -1,0 +1,509 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>西湖导游 · AI 数字人</title>
+<style>
+  /* ── 设计主题 ── */
+  :root {
+    --primary: #2d6a4f;
+    --primary-light: #40916c;
+    --bg: #fefae0;
+    --accent: #d4a373;
+    --accent-light: #e9c46a;
+    --text: #1b1b1b;
+    --text-light: #6b7280;
+    --surface: #ffffff;
+    --shadow: 0 4px 24px rgba(0,0,0,.08);
+    --radius: 16px;
+    --radius-sm: 10px;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh; overflow: hidden;
+  }
+  /* ── 布局 ── */
+  .app { display: flex; height: 100vh; }
+  .sidebar {
+    width: 340px; min-width: 340px;
+    background: var(--surface);
+    display: flex; flex-direction: column;
+    border-right: 1px solid rgba(0,0,0,.06);
+  }
+  .main {
+    flex: 1; display: flex; flex-direction: column;
+    background: var(--bg);
+  }
+  /* ── 侧栏：数字人 ── */
+  .avatar-section {
+    flex: 1; position: relative;
+    display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(180deg, #e8f5e9 0%, var(--bg) 100%);
+    overflow: hidden;
+  }
+  #live2d-canvas {
+    width: 100%; height: 100%;
+    object-fit: contain;
+  }
+  .avatar-fallback {
+    display: none; flex-direction: column; align-items: center; gap: 12px;
+    color: var(--primary);
+  }
+  .avatar-fallback .icon {
+    width: 120px; height: 120px; border-radius: 50%;
+    background: linear-gradient(135deg, var(--primary), var(--primary-light));
+    display: flex; align-items: center; justify-content: center;
+    font-size: 48px; color: #fff;
+    box-shadow: 0 8px 32px rgba(45,106,79,.3);
+  }
+  .avatar-fallback .label { font-size: 14px; opacity: .7; }
+  .avatar-fallback.show { display: flex; }
+
+  /* ── 侧栏底部：状态 ── */
+  .status-bar {
+    padding: 12px 20px; border-top: 1px solid rgba(0,0,0,.06);
+    display: flex; align-items: center; gap: 8px; font-size: 13px;
+  }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: #9ca3af; transition: background .3s;
+  }
+  .status-dot.online { background: #22c55e; }
+  .status-dot.speaking { background: var(--accent); animation: pulse .6s ease-in-out infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+  /* ── 主区：对话 ── */
+  .chat-header {
+    padding: 16px 24px; background: var(--surface);
+    border-bottom: 1px solid rgba(0,0,0,.06);
+    display: flex; align-items: center; gap: 12px;
+  }
+  .chat-header h1 { font-size: 18px; font-weight: 600; }
+  .chat-header .badge {
+    background: var(--primary); color: #fff; font-size: 11px;
+    padding: 2px 10px; border-radius: 20px;
+  }
+  .messages {
+    flex: 1; overflow-y: auto; padding: 20px 24px;
+    display: flex; flex-direction: column; gap: 16px;
+  }
+  .msg { max-width: 75%; padding: 12px 16px; border-radius: var(--radius-sm);
+    line-height: 1.6; font-size: 14px; animation: fadeIn .3s ease; }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+  .msg.user {
+    align-self: flex-end; background: var(--primary); color: #fff;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.bot {
+    align-self: flex-start; background: var(--surface);
+    border-bottom-left-radius: 4px; box-shadow: var(--shadow);
+  }
+  .msg .time { font-size: 11px; opacity: .6; margin-top: 4px; text-align: right; }
+  .msg.bot .time { color: var(--text-light); }
+  .typing {
+    align-self: flex-start; background: var(--surface); padding: 14px 18px;
+    border-radius: var(--radius-sm); display: none; gap: 4px;
+    box-shadow: var(--shadow);
+  }
+  .typing span {
+    width: 6px; height: 6px; border-radius: 50%; background: var(--primary);
+    animation: bounce 1.2s ease-in-out infinite;
+  }
+  .typing span:nth-child(2) { animation-delay: .2s; }
+  .typing span:nth-child(3) { animation-delay: .4s; }
+  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-8px)} }
+
+  /* ── 输入区 ── */
+  .input-area {
+    padding: 16px 24px; background: var(--surface);
+    border-top: 1px solid rgba(0,0,0,.06);
+    display: flex; gap: 10px; align-items: center;
+  }
+  .input-area input {
+    flex: 1; padding: 10px 16px; border: 2px solid #e5e7eb;
+    border-radius: 24px; font-size: 14px; outline: none;
+    transition: border-color .2s;
+  }
+  .input-area input:focus { border-color: var(--primary); }
+  .btn {
+    width: 40px; height: 40px; border: none; border-radius: 50%;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    font-size: 18px; transition: all .2s;
+    background: var(--primary); color: #fff; flex-shrink: 0;
+  }
+  .btn:hover { transform: scale(1.05); filter: brightness(1.1); }
+  .btn:active { transform: scale(.95); }
+  .btn.voice { background: var(--accent); }
+  .btn.voice.recording { background: #ef4444; animation: pulse-red .8s ease-in-out infinite; }
+  @keyframes pulse-red { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)} 50%{box-shadow:0 0 0 12px rgba(239,68,68,0)} }
+  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
+
+  /* ── 滚动条 ── */
+  .messages::-webkit-scrollbar { width: 4px; }
+  .messages::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+  /* ── 响应式 ── */
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .msg { max-width: 85%; }
+    .messages { padding: 12px 16px; }
+    .input-area { padding: 12px 16px; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- 侧栏：数字人 -->
+  <aside class="sidebar">
+    <div class="avatar-section">
+      <canvas id="live2d-canvas"></canvas>
+      <div class="avatar-fallback show" id="avatar-fallback">
+        <div class="icon">🏔️</div>
+        <div class="label">西湖导游 · 小西</div>
+      </div>
+    </div>
+    <div class="status-bar">
+      <span class="status-dot online" id="status-dot"></span>
+      <span id="status-text">在线 · 随时为你服务</span>
+    </div>
+  </aside>
+
+  <!-- 主区：对话 -->
+  <main class="main">
+    <div class="chat-header">
+      <h1>🏛️ 西湖导游</h1>
+      <span class="badge">AI 小西</span>
+    </div>
+
+    <div class="messages" id="messages"></div>
+
+    <!-- 打字动画 -->
+    <div class="typing" id="typing">
+      <span></span><span></span><span></span>
+    </div>
+
+    <!-- 输入区 -->
+    <div class="input-area">
+      <input type="text" id="text-input" placeholder="输入你的问题，例如「西湖有哪些景点？」" />
+      <button class="btn voice" id="voice-btn" title="语音输入">🎤</button>
+      <button class="btn" id="send-btn" title="发送">➤</button>
+    </div>
+  </main>
+</div>
+
+<script>
+// ═══════════════════════════════════════════════════════════
+//  A5 · 景区导览 AI 数字人 — 前端逻辑
+// ═══════════════════════════════════════════════════════════
+
+(function() {
+  'use strict';
+
+  // ── DOM 引用 ──
+  const $ = id => document.getElementById(id);
+  const messagesEl = $('messages');
+  const inputEl = $('text-input');
+  const sendBtn = $('send-btn');
+  const voiceBtn = $('voice-btn');
+  const typingEl = $('typing');
+  const statusDot = $('status-dot');
+  const statusText = $('status-text');
+  const canvas = $('live2d-canvas');
+  const fallback = $('avatar-fallback');
+
+  // ── 状态 ──
+  let isRecording = false;
+  let recognition = null;
+  let mediaRecorder = null;
+  let audioChunks = [];
+
+  // ── 添加消息 ──
+  function addMessage(text, role, audioUrl) {
+    const div = document.createElement('div');
+    div.className = `msg ${role}`;
+    const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
+    div.innerHTML = `${text}<div class="time">${time}</div>`;
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+
+    // 如果是机器人回答且有音频，自动播放
+    if (role === 'bot' && audioUrl) {
+      const audio = new Audio(audioUrl);
+      audio.play().catch(e => console.warn('自动播放被阻止:', e));
+      // 口型同步指示
+      setSpeaking(true);
+      audio.onended = () => setSpeaking(false);
+      audio.onerror = () => setSpeaking(false);
+    }
+  }
+
+  // ── 设置状态 ──
+  function setSpeaking(speaking) {
+    if (speaking) {
+      statusDot.className = 'status-dot speaking';
+      statusText.textContent = '正在播报…';
+    } else {
+      statusDot.className = 'status-dot online';
+      statusText.textContent = '在线 · 随时为你服务';
+    }
+  }
+
+  function setListening(listening) {
+    if (listening) {
+      statusDot.className = 'status-dot speaking';
+      statusText.textContent = '正在聆听…';
+    } else {
+      statusDot.className = 'status-dot online';
+      statusText.textContent = '在线 · 随时为你服务';
+    }
+  }
+
+  // ── 显示打字动画 ──
+  function showTyping(show) {
+    typingEl.style.display = show ? 'flex' : 'none';
+  }
+
+  // ── 发送文字消息 ──
+  async function sendTextMessage(text) {
+    if (!text.trim()) return;
+    addMessage(text, 'user');
+    inputEl.value = '';
+    sendBtn.disabled = true;
+    showTyping(true);
+
+    try {
+      const formData = new FormData();
+      formData.append('query', text);
+      const resp = await fetch('/chat/message', { method: 'POST', body: formData });
+      const data = await resp.json();
+      showTyping(false);
+      addMessage(data.reply, 'bot', data.audio_url || null);
+    } catch (err) {
+      showTyping(false);
+      addMessage('网络连接失败，请检查服务是否运行。', 'bot');
+    } finally {
+      sendBtn.disabled = false;
+      inputEl.focus();
+    }
+  }
+
+  // ── 发送语音消息 ──
+  async function sendVoiceMessage(audioBlob, asrText) {
+    if (!audioBlob && !asrText) return;
+    if (asrText) addMessage(asrText, 'user');
+    else addMessage('🎤 语音消息', 'user');
+    showTyping(true);
+
+    try {
+      const formData = new FormData();
+      if (audioBlob) formData.append('audio', audioBlob, 'voice.webm');
+      formData.append('text', asrText || '');
+      const resp = await fetch('/chat/voice', { method: 'POST', body: formData });
+      const data = await resp.json();
+      showTyping(false);
+      if (data.asr_text && !asrText) {
+        // 更新为服务端 ASR 结果
+        messagesEl.lastChild.textContent = data.asr_text;
+      }
+      addMessage(data.reply, 'bot', data.audio_url || null);
+    } catch (err) {
+      showTyping(false);
+      addMessage('语音处理失败，请重试或使用文字输入。', 'bot');
+    }
+  }
+
+  // ── 事件绑定 ──
+
+  // 发送按钮
+  sendBtn.addEventListener('click', () => sendTextMessage(inputEl.value));
+
+  // 回车发送
+  inputEl.addEventListener('keydown', e => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      sendTextMessage(inputEl.value);
+    }
+  });
+
+  // ═════════════════════════════════════════════════════════
+  //  语音输入：Web Speech API (降级 ASR)
+  // ═════════════════════════════════════════════════════════
+
+  // 检测浏览器语音支持
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  if (SpeechRecognition) {
+    recognition = new SpeechRecognition();
+    recognition.lang = 'zh-CN';
+    recognition.continuous = false;
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+
+    recognition.onresult = event => {
+      const transcript = event.results[0][0].transcript;
+      setListening(false);
+      voiceBtn.className = 'btn voice';
+      // 直接用文字发送（降级：浏览器 ASR → LLM）
+      sendTextMessage(transcript);
+    };
+
+    recognition.onerror = event => {
+      console.warn('语音识别错误:', event.error);
+      setListening(false);
+      voiceBtn.className = 'btn voice';
+      if (event.error === 'no-speech') {
+        addMessage('没有检测到语音，请重试。', 'bot');
+      }
+    };
+
+    recognition.onend = () => {
+      setListening(false);
+      voiceBtn.className = 'btn voice';
+    };
+
+    // 语音按钮
+    voiceBtn.addEventListener('click', () => {
+      if (isRecording) {
+        recognition.stop();
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
+        isRecording = false;
+        voiceBtn.className = 'btn voice';
+        return;
+      }
+      // 开始录音
+      isRecording = true;
+      voiceBtn.className = 'btn voice recording';
+      setListening(true);
+
+      // 同时启动 Web Speech 识别（浏览器 ASR）
+      try {
+        recognition.start();
+      } catch (e) {
+        console.warn('Web Speech 启动失败:', e);
+      }
+
+      // 同时也录原始音频（供服务端 ASR 备用）
+      if (navigator.mediaDevices) {
+        navigator.mediaDevices.getUserMedia({ audio: true })
+          .then(stream => {
+            mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+            audioChunks = [];
+            mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+            mediaRecorder.onstop = () => {
+              stream.getTracks().forEach(t => t.stop());
+            };
+            mediaRecorder.start();
+            // 8秒后自动停止录音
+            setTimeout(() => {
+              if (isRecording) {
+                recognition.stop();
+                if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                  mediaRecorder.stop();
+                }
+                isRecording = false;
+                voiceBtn.className = 'btn voice';
+                setListening(false);
+              }
+            }, 8000);
+          })
+          .catch(err => console.warn('麦克风权限被拒绝:', err));
+      }
+    });
+  } else {
+    // 不支持 Web Speech，使用 MediaRecorder + 服务端 ASR
+    voiceBtn.addEventListener('click', async () => {
+      if (isRecording) {
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
+        isRecording = false;
+        voiceBtn.className = 'btn voice';
+        return;
+      }
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
+        audioChunks = [];
+        mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+        mediaRecorder.onstop = async () => {
+          stream.getTracks().forEach(t => t.stop());
+          const blob = new Blob(audioChunks, { type: 'audio/webm' });
+          setListening(false);
+          await sendVoiceMessage(blob, '');
+        };
+        mediaRecorder.start();
+        isRecording = true;
+        voiceBtn.className = 'btn voice recording';
+        setListening(true);
+        // 10秒自动停止
+        setTimeout(() => {
+          if (isRecording && mediaRecorder && mediaRecorder.state !== 'inactive') {
+            mediaRecorder.stop();
+            isRecording = false;
+            voiceBtn.className = 'btn voice';
+            setListening(false);
+          }
+        }, 10000);
+      } catch (err) {
+        addMessage('需要麦克风权限才能使用语音输入。', 'bot');
+        voiceBtn.className = 'btn voice';
+      }
+    });
+  }
+
+  // ── Live2D 集成 (Cubism SDK) ──
+  // 模型路径: /static/live2d/default/
+  async function initLive2D() {
+    const modelPath = '/static/live2d/default/';
+
+    // 检查是否有模型文件
+    try {
+      const resp = await fetch(modelPath + 'model.model3.json', { method: 'HEAD' });
+      if (!resp.ok) {
+        console.log('无 Live2D 模型文件，使用静态头像');
+        return;
+      }
+    } catch {
+      console.log('Live2D 模型不可用，使用静态头像');
+      return;
+    }
+
+    // 有模型文件，加载 Cubism SDK
+    fallback.classList.remove('show');
+    try {
+      await loadCubismSDK();
+    } catch (err) {
+      console.warn('Live2D SDK 加载失败:', err);
+      fallback.classList.add('show');
+    }
+  }
+
+  async function loadCubismSDK() {
+    // Cubism 4 WebGL SDK 集成钩子
+    // 需要将 live2d.min.js 放入 frontend/static/live2d/
+    // 参见 P3c 景区前端 UI 改造阶段
+    console.log('Live2D SDK 加载钩子（待集成）');
+  }
+
+  // 初始化
+  initLive2D();
+
+  // 自动聚焦到输入框
+  inputEl.focus();
+
+  // 欢迎消息
+  setTimeout(() => {
+    addMessage('你好！我是西湖导游小西 🏔️，欢迎来杭州西湖游玩！你可以问我关于景点、美食、路线等问题。', 'bot');
+  }, 500);
+
+})();
+</script>
+</body>
+</html>
