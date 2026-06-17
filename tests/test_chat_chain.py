@@ -29,7 +29,7 @@ class TestChatChain:
 
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.post("/chat/message", params={"query": "你好"})
+            resp = await client.post("/chat/message", json={"query": "你好"})
         assert resp.status_code == 200
 
     def test_dify_client_init(self) -> None:

@@ -13,8 +13,6 @@ from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
-# 连续失败计数
-_consecutive_failures: int = 0
 _FALLBACK_THRESHOLD: int = 3
 
 
@@ -37,6 +35,8 @@ class ChatBot:
         self.fallback_model = "qwen-turbo"
         self.fallback_api_key = ""  # 需要用户在 .env 中设置
         self._using_fallback = False
+        # 实例级失败计数（避免多用户并发问题）
+        self._consecutive_failures: int = 0
 
     async def chat(self, query: str, context: str | None = None) -> str | None:
         """生成回答，自动降级。
@@ -50,8 +50,6 @@ class ChatBot:
         Returns:
             回答文本或 None
         """
-        global _consecutive_failures
-
         # 阶段 1：优先尝试 Dify RAG（仅 API Key 已配置时）
         if self._dify_configured():
             reply = await self._dify_or_fallback(query)
@@ -60,7 +58,7 @@ class ChatBot:
             logger.info("[ChatBot] Dify 不可用，降级至直连 DeepSeek")
 
         # 阶段 2：原有 DeepSeek → 通义千问逻辑
-        if _consecutive_failures >= _FALLBACK_THRESHOLD:
+        if self._consecutive_failures >= _FALLBACK_THRESHOLD:
             logger.warning("[ChatBot] 已达降级阈值，切换到通义千问")
             return await self._chat_fallback(query, context)
 
@@ -77,7 +75,7 @@ class ChatBot:
             )
             reply = response.choices[0].message.content
             if reply:
-                _consecutive_failures = 0
+                self._consecutive_failures = 0
                 logger.info(
                     "[ChatBot] DeepSeek 回答成功 (tokens=%d)",
                     response.usage.total_tokens if response.usage else 0,
@@ -86,15 +84,15 @@ class ChatBot:
             logger.warning("[ChatBot] DeepSeek 返回空回答")
             return None
         except Exception as e:
-            _consecutive_failures += 1
+            self._consecutive_failures += 1
             logger.error(
                 "[ChatBot] DeepSeek 调用失败 (连续 %d 次): %s",
-                _consecutive_failures,
+                self._consecutive_failures,
                 e,
                 exc_info=True,
             )
 
-            if _consecutive_failures >= _FALLBACK_THRESHOLD:
+            if self._consecutive_failures >= _FALLBACK_THRESHOLD:
                 logger.warning("[ChatBot] 切换至降级方案：通义千问")
                 return await self._chat_fallback(query, context)
             return None

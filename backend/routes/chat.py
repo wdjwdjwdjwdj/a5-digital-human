@@ -1,10 +1,12 @@
 """对话路由：文字/语音输入 → LLM → TTS 完整链路。"""
 
 import logging
+import uuid
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from fastapi import APIRouter, File, Form, UploadFile
+from pydantic import BaseModel, Field
 
 from backend.services.chatbot import chatbot
 from backend.services.tts_service import tts_manager
@@ -13,7 +15,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/chat", tags=["对话"])
 
-# 景区知识库上下文（待 P3a Dify RAG 就绪后替换为实时检索）
+# 景区知识库上下文（Dify 不可用时的降级上下文）
 _SCENIC_CONTEXT = (
     "你是杭州西湖景区的智能导游，名叫'小西'。"
     "请用热情、专业的语气回答游客关于西湖的问题。"
@@ -21,18 +23,30 @@ _SCENIC_CONTEXT = (
 )
 
 
+class MessageRequest(BaseModel):
+    """文字对话请求体。"""
+
+    query: str = Field(..., description="用户输入文本")
+
+
+class StreamRequest(BaseModel):
+    """流式对话请求体。"""
+
+    query: str = Field(..., description="用户输入文本")
+
+
 @router.post("/message")
-async def send_message(query: str = Form(...)) -> dict:
+async def send_message(req: MessageRequest) -> dict:
     """文字对话：发送消息 → LLM 回答。
 
     Args:
-        query: 用户输入文本
+        req: 包含 query 字段的 JSON 请求体
 
     Returns:
         {"reply": str, "audio": bool}
     """
-    logger.info("[Chat] 收到文字消息: %s", query[:50])
-    reply = await chatbot.chat(query, context=_SCENIC_CONTEXT)
+    logger.info("[Chat] 收到文字消息: %s", req.query[:50])
+    reply = await chatbot.chat(req.query, context=_SCENIC_CONTEXT)
     if reply:
         logger.info("[Chat] 回答: %s", reply[:80])
         return {"reply": reply, "audio": False}
@@ -87,16 +101,17 @@ async def voice_chat(
     if audio_data:
         static_audio_dir = Path(__file__).parent.parent / "frontend" / "static" / "audio"
         static_audio_dir.mkdir(parents=True, exist_ok=True)
-        audio_path = static_audio_dir / "response.wav"
+        audio_filename = f"{uuid.uuid4().hex}.wav"
+        audio_path = static_audio_dir / audio_filename
         audio_path.write_bytes(audio_data)
-        audio_url = "/static/audio/response.wav"
+        audio_url = f"/static/audio/{audio_filename}"
         logger.info("[Chat] TTS 音频已保存: %s", audio_path)
 
     return {"reply": reply, "audio_url": audio_url, "asr_text": query}
 
 
 @router.post("/stream")
-async def stream_message(query: str = Form(...)) -> dict:
+async def stream_message(req: StreamRequest) -> dict:
     """流式对话接口（轮询模式，用于前端打字机效果）。"""
-    reply = await chatbot.chat(query, context=_SCENIC_CONTEXT)
+    reply = await chatbot.chat(req.query, context=_SCENIC_CONTEXT)
     return {"reply": reply or "抱歉，我现在无法回答。"}
