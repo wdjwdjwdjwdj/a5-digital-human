@@ -18,6 +18,14 @@ logging.basicConfig(
     level=logging.WARNING,
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
 )
+logger = logging.getLogger(__name__)
+
+
+def _out(msg: str = "") -> None:
+    """输出到终端（替代 print）。"""
+    sys.stdout.write(msg + "\n")
+    sys.stdout.flush()
+
 
 # ── 测试集：25 题覆盖全部 5 个知识库文档 ──────────────
 # 每项：(question, [expected_keywords])
@@ -90,16 +98,16 @@ async def evaluate_accuracy() -> float:
 
     test_cases = load_test_set()
     if not test_cases:
-        print("⚠️  未加载测试集，返回 0.0")
+        logger.warning("未加载测试集，返回 0.0")
         return 0.0
 
     total = len(test_cases)
     correct = 0
     failed: list[tuple[str, list[str], str]] = []
 
-    print(f"\n{'=' * 60}")
-    print(f"  西湖景区知识问答准确率测试（共 {total} 题）")
-    print(f"{'=' * 60}\n")
+    _out(f"\n{'=' * 60}")
+    _out(f"  西湖景区知识问答准确率测试（共 {total} 题）")
+    _out(f"{'=' * 60}\n")
 
     for i, (question, keywords) in enumerate(test_cases, 1):
         reply = await chatbot.chat(query=question)
@@ -110,27 +118,28 @@ async def evaluate_accuracy() -> float:
             failed.append((question, keywords, reply or "None"))
             status = "❌"
 
-        # 只打印错误题目的详情
+        # 只输出错误题目的详情
         if status == "❌":
-            print(f"  {status} [{i:02d}] {question}")
-            print(f"      期望关键词: {keywords}")
-            print(f"      实际回答:   {reply or 'None'}")
+            _out(f"  {status} [{i:02d}] {question}")
+            _out(f"      期望关键词: {keywords}")
+            _out(f"      实际回答:   {reply or 'None'}")
 
     accuracy = correct / total
-    print(f"\n{'─' * 60}")
-    print(f"  结果: {accuracy * 100:.1f}% ({correct}/{total})", end="")
+    _out(f"\n{'─' * 60}")
+    result_line = f"  结果: {accuracy * 100:.1f}% ({correct}/{total})"
     if accuracy >= 0.9:
-        print(" ✅ 通过（目标 ≥ 90%）")
+        result_line += " ✅ 通过（目标 ≥ 90%）"
     else:
-        print(" ❌ 未通过（目标 ≥ 90%）")
-    print(f"{'─' * 60}\n")
+        result_line += " ❌ 未通过（目标 ≥ 90%）"
+    _out(result_line)
+    _out(f"{'─' * 60}\n")
 
     if failed:
-        print(f"  失败详情（{len(failed)} 题失败）:")
+        _out(f"  失败详情（{len(failed)} 题失败）:")
         for question, keywords, reply in failed:
-            print(f"    · {question}")
-            print(f"      期望: {keywords}")
-            print(f"      回答: {reply[:80] if reply else 'None'}")
+            _out(f"    · {question}")
+            _out(f"      期望: {keywords}")
+            _out(f"      回答: {reply[:80] if reply else 'None'}")
 
     return accuracy
 

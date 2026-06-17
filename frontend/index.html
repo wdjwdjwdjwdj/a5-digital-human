@@ -229,6 +229,16 @@ body {
   background: var(--primary-dark);
 }
 
+/* ── 底部 footer ── */
+.footer {
+  padding: 8px 24px;
+  background: var(--primary-dark);
+  color: rgba(255,255,255,.6);
+  font-size: 11px;
+  display: flex; justify-content: space-between; align-items: center;
+  flex-shrink: 0;
+}
+
 /* ── 打字动画 ── */
 .typing {
   align-self: flex-start;
@@ -405,6 +415,12 @@ body {
       <button class="btn voice" id="voice-btn" title="语音输入">🎤</button>
       <button class="btn" id="send-btn" title="发送">➤</button>
     </div>
+
+    <!-- 底部 footer -->
+    <footer class="footer">
+      <span>第十五届"中国软件杯" A5 赛题 · 景区导览AI数字人</span>
+      <span>基于 Open-LLM-VTuber · DeepSeek · Dify RAG · FunASR · Edge-TTS · Live2D</span>
+    </footer>
   </main>
 </div>
 
@@ -491,9 +507,11 @@ body {
     showTyping(true);
 
     try {
-      const formData = new FormData();
-      formData.append('query', text);
-      const resp = await fetch('/chat/message', { method: 'POST', body: formData });
+      const resp = await fetch('/chat/message', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ query: text }),
+      });
       const data = await resp.json();
       showTyping(false);
       addMessage(data.reply, 'bot', data.audio_url || null);
