@@ -226,7 +226,11 @@
     const div = document.createElement('div');
     div.className = `msg ${role}`;
     const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-    div.innerHTML = `${text}<div class="time">${time}</div>`;
+    const timeSpan = document.createElement('div');
+    timeSpan.className = 'time';
+    timeSpan.textContent = time;
+    div.textContent = text;
+    div.appendChild(timeSpan);
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
@@ -469,11 +473,9 @@
     try {
       const resp = await fetch(modelPath + 'model.model3.json', { method: 'HEAD' });
       if (!resp.ok) {
-        console.log('无 Live2D 模型文件，使用静态头像');
         return;
       }
     } catch {
-      console.log('Live2D 模型不可用，使用静态头像');
       return;
     }
 
@@ -482,7 +484,6 @@
     try {
       await loadCubismSDK();
     } catch (err) {
-      console.warn('Live2D SDK 加载失败:', err);
       fallback.classList.add('show');
     }
   }
@@ -491,7 +492,7 @@
     // Cubism 4 WebGL SDK 集成钩子
     // 需要将 live2d.min.js 放入 frontend/static/live2d/
     // 参见 P3c 景区前端 UI 改造阶段
-    console.log('Live2D SDK 加载钩子（待集成）');
+  }
   }
 
   // 初始化
