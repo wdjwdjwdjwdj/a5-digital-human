@@ -62,9 +62,10 @@ async def root():
 @app.on_event("startup")
 async def startup():
     """应用启动时的初始化工作。"""
-    # 确保 data 目录存在
+    # 确保目录存在
     Path("data").mkdir(exist_ok=True)
-    Path("data/audio").mkdir(exist_ok=True)
+    static_audio = STATIC_DIR / "audio"
+    static_audio.mkdir(parents=True, exist_ok=True)
     # 检查 API Key
     if not settings.deepseek_api_key:
         logger.warning("DEEPSEEK_API_KEY 未配置，LLM 功能不可用")

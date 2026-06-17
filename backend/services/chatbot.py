@@ -1,6 +1,11 @@
 """对话编排：LLM + RAG + 上下文管理。"""
 
 import logging
+import os
+import ssl
+
+import httpx
+from openai import AsyncOpenAI
 
 from backend.config import settings
 
@@ -46,12 +51,7 @@ class ChatBot:
             return await self._chat_fallback(query, context)
 
         try:
-            from openai import AsyncOpenAI
-
-            client = AsyncOpenAI(
-                api_key=self.primary_api_key,
-                base_url=self.primary_base_url,
-            )
+            client = self._create_client(self.primary_api_key, self.primary_base_url)
             messages = self._build_messages(query, context)
 
             response = await client.chat.completions.create(
@@ -85,6 +85,31 @@ class ChatBot:
                 return await self._chat_fallback(query, context)
             return None
 
+    @staticmethod
+    def _create_client(api_key: str, base_url: str) -> AsyncOpenAI:
+        """创建 OpenAI 客户端。
+
+        Args:
+            api_key: API 密钥
+            base_url: API 基础地址
+
+        Returns:
+            AsyncOpenAI 客户端实例
+        """
+        import certifi
+
+        # 使用 certifi 提供的最新 CA 证书包
+        ssl_context = ssl.create_default_context(cafile=certifi.where())
+        http_client = httpx.AsyncClient(
+            verify=ssl_context,
+            trust_env=False,
+        )
+        return AsyncOpenAI(
+            api_key=api_key,
+            base_url=base_url,
+            http_client=http_client,
+        )
+
     async def _chat_fallback(self, query: str, context: str | None = None) -> str | None:
         """降级方案：通义千问 API。
 
@@ -99,12 +124,7 @@ class ChatBot:
             logger.error("[ChatBot] 通义千问 API Key 未配置，降级不可用")
             return None
         try:
-            from openai import AsyncOpenAI
-
-            client = AsyncOpenAI(
-                api_key=self.fallback_api_key,
-                base_url=self.fallback_base_url,
-            )
+            client = self._create_client(self.fallback_api_key, self.fallback_base_url)
             messages = self._build_messages(query, context)
             response = await client.chat.completions.create(
                 model=self.fallback_model,

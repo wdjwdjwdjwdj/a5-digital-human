@@ -85,9 +85,9 @@ async def voice_chat(
     audio_data = await tts_manager.synthesize(reply)
     audio_url = None
     if audio_data:
-        audio_dir = Path("data/audio")
-        audio_dir.mkdir(parents=True, exist_ok=True)
-        audio_path = audio_dir / "response.wav"
+        static_audio_dir = Path(__file__).parent.parent / "frontend" / "static" / "audio"
+        static_audio_dir.mkdir(parents=True, exist_ok=True)
+        audio_path = static_audio_dir / "response.wav"
         audio_path.write_bytes(audio_data)
         audio_url = "/static/audio/response.wav"
         logger.info("[Chat] TTS 音频已保存: %s", audio_path)
