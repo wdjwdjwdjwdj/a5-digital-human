@@ -1,0 +1,74 @@
+{
+  "name": "杭州西湖 · 智慧导览",
+  "colors": {
+    "primary": "#2d6a4f",
+    "primary_light": "#40916c",
+    "primary_dark": "#1b4332",
+    "bg_main": "#fefae0",
+    "accent": "#d4a373",
+    "accent_light": "#e9c46a",
+    "text": "#1b1b1b",
+    "text_light": "#6b7280",
+    "surface": "#ffffff",
+    "success": "#22c55e",
+    "danger": "#ef4444"
+  },
+  "typography": {
+    "font_family": "\"Noto Sans SC\", \"PingFang SC\", -apple-system, BlinkMacSystemFont, \"Segoe UI\", Roboto, sans-serif",
+    "font_size_base": "14px",
+    "font_size_small": "12px",
+    "font_size_large": "18px"
+  },
+  "logo": {
+    "text": "杭州西湖 · 智慧导览",
+    "width": "180px"
+  },
+  "scenic_elements": [
+    {
+      "name": "三潭印月",
+      "emoji": "🏛️",
+      "desc": "西湖第一胜景",
+      "query": "请介绍一下三潭印月"
+    },
+    {
+      "name": "苏堤春晓",
+      "emoji": "🌿",
+      "desc": "春日漫步好去处",
+      "query": "请介绍一下苏堤春晓"
+    },
+    {
+      "name": "断桥残雪",
+      "emoji": "🌉",
+      "desc": "许仙白娘子相会",
+      "query": "请介绍一下断桥残雪"
+    },
+    {
+      "name": "雷峰夕照",
+      "emoji": "🌅",
+      "desc": "雷锋塔下夕阳红",
+      "query": "请介绍一下雷峰夕照"
+    }
+  ],
+  "quick_actions": [
+    {
+      "label": "🏛️ 西湖十景介绍",
+      "query": "请介绍一下西湖十景"
+    },
+    {
+      "label": "🎫 票价查询",
+      "query": "西湖各景点门票价格是多少？"
+    },
+    {
+      "label": "🍜 美食推荐",
+      "query": "西湖附近有什么好吃的？"
+    },
+    {
+      "label": "🗺️ 游览路线",
+      "query": "推荐一条半日游路线"
+    }
+  ],
+  "breakpoints": {
+    "tablet": "768px",
+    "mobile": "480px"
+  }
+}

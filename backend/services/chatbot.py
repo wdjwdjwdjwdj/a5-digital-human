@@ -1,7 +1,9 @@
-"""对话编排：LLM + RAG + 上下文管理。"""
+"""对话编排：LLM + RAG + 上下文管理。
+
+多级降级链路：Dify RAG → DeepSeek → 通义千问
+"""
 
 import logging
-import os
 import ssl
 
 import httpx
@@ -19,8 +21,10 @@ _FALLBACK_THRESHOLD: int = 3
 class ChatBot:
     """对话引擎，负责编排 LLM 与 RAG 检索。
 
-    主方案：DeepSeek API（通过 OpenAI 兼容接口）
-    降级方案：通义千问 API（连续 3 次 5xx 时自动切换）
+    调用链路（自优先至高）：
+    1. Dify RAG（通过 DifyClient）
+    2. DeepSeek API（OpenAI 兼容接口）
+    3. 通义千问 API（连续 3 次 5xx 时）
     """
 
     def __init__(self) -> None:
@@ -37,15 +41,25 @@ class ChatBot:
     async def chat(self, query: str, context: str | None = None) -> str | None:
         """生成回答，自动降级。
 
+        链路：Dify RAG → DeepSeek → 通义千问
+
         Args:
             query: 用户输入文本
-            context: 可选的 RAG 检索上下文（景区知识）
+            context: 可选的 RAG 检索上下文（未接入 Dify 时使用）
 
         Returns:
             回答文本或 None
         """
         global _consecutive_failures
 
+        # 阶段 1：优先尝试 Dify RAG（仅 API Key 已配置时）
+        if self._dify_configured():
+            reply = await self._dify_or_fallback(query)
+            if reply:
+                return reply
+            logger.info("[ChatBot] Dify 不可用，降级至直连 DeepSeek")
+
+        # 阶段 2：原有 DeepSeek → 通义千问逻辑
         if _consecutive_failures >= _FALLBACK_THRESHOLD:
             logger.warning("[ChatBot] 已达降级阈值，切换到通义千问")
             return await self._chat_fallback(query, context)
@@ -83,6 +97,48 @@ class ChatBot:
             if _consecutive_failures >= _FALLBACK_THRESHOLD:
                 logger.warning("[ChatBot] 切换至降级方案：通义千问")
                 return await self._chat_fallback(query, context)
+            return None
+
+    # ── Dify 双模 ────────────────────────────────────────
+
+    @staticmethod
+    def _dify_configured() -> bool:
+        """检查 Dify 是否已配置。
+
+        Returns:
+            已配置返回 True
+        """
+        key = settings.dify_api_key
+        return bool(key) and key not in ("your-key-here", "")
+
+    async def _dify_or_fallback(self, query: str) -> str | None:
+        """优先调 Dify，不可用时返回 None 交给上层降级。
+
+        这是"双模"入口：Dify 在线就用 Dify 回答，
+        Dify 不通则返回 None，chat() 自动走 DeepSeek。
+
+        Args:
+            query: 用户输入
+
+        Returns:
+            回答文本或 None
+        """
+        try:
+            from backend.services.dify_client import dify_client as dc
+
+            result = await dc.chat(query=query, user="default")
+            if result and "answer" in result:
+                answer = result["answer"].strip()
+                if answer:
+                    logger.info("[ChatBot] Dify 回答成功")
+                    return answer
+            logger.warning("[ChatBot] Dify 返回空回答")
+            return None
+        except ImportError:
+            logger.warning("[ChatBot] dify_client 模块不可用")
+            return None
+        except Exception as e:
+            logger.warning("[ChatBot] Dify 调用异常: %s", e)
             return None
 
     @staticmethod

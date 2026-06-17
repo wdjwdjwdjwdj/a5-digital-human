@@ -18,6 +18,7 @@ class TestDifyRAG:
     def test_knowledge_docs_exist(self) -> None:
         """测试知识库文档存在。"""
         from pathlib import Path
+
         knowledge_dir = Path("knowledge")
         assert knowledge_dir.exists()
         md_files = list(knowledge_dir.glob("*.md"))

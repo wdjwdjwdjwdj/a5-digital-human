@@ -42,7 +42,7 @@ async def send_message(query: str = Form(...)) -> dict:
 
 @router.post("/voice")
 async def voice_chat(
-    audio: UploadFile = File(...),
+    audio: UploadFile = File(),  # noqa: B008
     text: str = Form(default=""),
 ) -> dict:
     """语音对话：音频 → ASR(可选) → LLM → TTS → 返回音频。

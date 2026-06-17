@@ -3,183 +3,396 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>西湖导游 · AI 数字人</title>
+<title>杭州西湖 · 智慧导览</title>
 <style>
-  /* ── 设计主题 ── */
-  :root {
-    --primary: #2d6a4f;
-    --primary-light: #40916c;
-    --bg: #fefae0;
-    --accent: #d4a373;
-    --accent-light: #e9c46a;
-    --text: #1b1b1b;
-    --text-light: #6b7280;
-    --surface: #ffffff;
-    --shadow: 0 4px 24px rgba(0,0,0,.08);
-    --radius: 16px;
-    --radius-sm: 10px;
-  }
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans SC", sans-serif;
-    background: var(--bg);
-    color: var(--text);
-    height: 100vh; overflow: hidden;
-  }
-  /* ── 布局 ── */
-  .app { display: flex; height: 100vh; }
-  .sidebar {
-    width: 340px; min-width: 340px;
-    background: var(--surface);
-    display: flex; flex-direction: column;
-    border-right: 1px solid rgba(0,0,0,.06);
-  }
-  .main {
-    flex: 1; display: flex; flex-direction: column;
-    background: var(--bg);
-  }
-  /* ── 侧栏：数字人 ── */
-  .avatar-section {
-    flex: 1; position: relative;
-    display: flex; align-items: center; justify-content: center;
-    background: linear-gradient(180deg, #e8f5e9 0%, var(--bg) 100%);
-    overflow: hidden;
-  }
-  #live2d-canvas {
-    width: 100%; height: 100%;
-    object-fit: contain;
-  }
-  .avatar-fallback {
-    display: none; flex-direction: column; align-items: center; gap: 12px;
-    color: var(--primary);
-  }
-  .avatar-fallback .icon {
-    width: 120px; height: 120px; border-radius: 50%;
-    background: linear-gradient(135deg, var(--primary), var(--primary-light));
-    display: flex; align-items: center; justify-content: center;
-    font-size: 48px; color: #fff;
-    box-shadow: 0 8px 32px rgba(45,106,79,.3);
-  }
-  .avatar-fallback .label { font-size: 14px; opacity: .7; }
-  .avatar-fallback.show { display: flex; }
+/* ═══════════════════════════════════════════════════════════
+   设计主题：杭州西湖 · 智慧导览
+   主色 #2d6a4f / 底色 #fefae0 / 强调色 #d4a373
+   ═══════════════════════════════════════════════════════════ */
+:root {
+  --primary: #2d6a4f;
+  --primary-light: #40916c;
+  --primary-dark: #1b4332;
+  --bg: #fefae0;
+  --accent: #d4a373;
+  --accent-light: #e9c46a;
+  --text: #1b1b1b;
+  --text-light: #6b7280;
+  --surface: #ffffff;
+  --shadow: 0 4px 24px rgba(0,0,0,.08);
+  --radius: 16px;
+  --radius-sm: 10px;
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: "Noto Sans SC", "PingFang SC", -apple-system, BlinkMacSystemFont,
+               "Segoe UI", Roboto, sans-serif;
+  background: #fefae0;
+  /* 水波纹渐变装饰 */
+  background-image:
+    radial-gradient(ellipse at 15% 40%, rgba(45,106,79,.07) 0%, transparent 55%),
+    radial-gradient(ellipse at 85% 25%, rgba(212,163,115,.08) 0%, transparent 50%),
+    radial-gradient(ellipse at 50% 75%, rgba(64,145,108,.05) 0%, transparent 45%);
+  color: var(--text);
+  height: 100vh; overflow: hidden;
+}
 
-  /* ── 侧栏底部：状态 ── */
-  .status-bar {
-    padding: 12px 20px; border-top: 1px solid rgba(0,0,0,.06);
-    display: flex; align-items: center; gap: 8px; font-size: 13px;
-  }
-  .status-dot {
-    width: 8px; height: 8px; border-radius: 50%;
-    background: #9ca3af; transition: background .3s;
-  }
-  .status-dot.online { background: #22c55e; }
-  .status-dot.speaking { background: var(--accent); animation: pulse .6s ease-in-out infinite; }
-  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+/* ── 布局 ── */
+.app { display: flex; height: 100vh; }
 
-  /* ── 主区：对话 ── */
-  .chat-header {
-    padding: 16px 24px; background: var(--surface);
-    border-bottom: 1px solid rgba(0,0,0,.06);
-    display: flex; align-items: center; gap: 12px;
-  }
-  .chat-header h1 { font-size: 18px; font-weight: 600; }
-  .chat-header .badge {
-    background: var(--primary); color: #fff; font-size: 11px;
-    padding: 2px 10px; border-radius: 20px;
-  }
-  .messages {
-    flex: 1; overflow-y: auto; padding: 20px 24px;
-    display: flex; flex-direction: column; gap: 16px;
-  }
-  .msg { max-width: 75%; padding: 12px 16px; border-radius: var(--radius-sm);
-    line-height: 1.6; font-size: 14px; animation: fadeIn .3s ease; }
-  @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
-  .msg.user {
-    align-self: flex-end; background: var(--primary); color: #fff;
-    border-bottom-right-radius: 4px;
-  }
-  .msg.bot {
-    align-self: flex-start; background: var(--surface);
-    border-bottom-left-radius: 4px; box-shadow: var(--shadow);
-  }
-  .msg .time { font-size: 11px; opacity: .6; margin-top: 4px; text-align: right; }
-  .msg.bot .time { color: var(--text-light); }
-  .typing {
-    align-self: flex-start; background: var(--surface); padding: 14px 18px;
-    border-radius: var(--radius-sm); display: none; gap: 4px;
-    box-shadow: var(--shadow);
-  }
-  .typing span {
-    width: 6px; height: 6px; border-radius: 50%; background: var(--primary);
-    animation: bounce 1.2s ease-in-out infinite;
-  }
-  .typing span:nth-child(2) { animation-delay: .2s; }
-  .typing span:nth-child(3) { animation-delay: .4s; }
-  @keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-8px)} }
+/* ═══════════════════════════════════════════════════════════
+   景点侧栏 240px
+   ═══════════════════════════════════════════════════════════ */
+.sidebar {
+  width: 240px; min-width: 240px;
+  background: rgba(255,255,255,.72);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  display: flex; flex-direction: column;
+  border-right: 1px solid rgba(0,0,0,.06);
+}
 
-  /* ── 输入区 ── */
-  .input-area {
-    padding: 16px 24px; background: var(--surface);
-    border-top: 1px solid rgba(0,0,0,.06);
-    display: flex; gap: 10px; align-items: center;
-  }
-  .input-area input {
-    flex: 1; padding: 10px 16px; border: 2px solid #e5e7eb;
-    border-radius: 24px; font-size: 14px; outline: none;
-    transition: border-color .2s;
-  }
-  .input-area input:focus { border-color: var(--primary); }
-  .btn {
-    width: 40px; height: 40px; border: none; border-radius: 50%;
-    cursor: pointer; display: flex; align-items: center; justify-content: center;
-    font-size: 18px; transition: all .2s;
-    background: var(--primary); color: #fff; flex-shrink: 0;
-  }
-  .btn:hover { transform: scale(1.05); filter: brightness(1.1); }
-  .btn:active { transform: scale(.95); }
-  .btn.voice { background: var(--accent); }
-  .btn.voice.recording { background: #ef4444; animation: pulse-red .8s ease-in-out infinite; }
-  @keyframes pulse-red { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)} 50%{box-shadow:0 0 0 12px rgba(239,68,68,0)} }
-  .btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
+/* 侧栏头部 */
+.sidebar-header {
+  padding: 22px 16px 14px;
+  text-align: center;
+  border-bottom: 1px solid rgba(0,0,0,.05);
+}
+.sidebar-header .logo-icon {
+  width: 52px; height: 52px; margin: 0 auto 8px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; color: #fff;
+  box-shadow: 0 4px 16px rgba(45,106,79,.25);
+}
+.sidebar-header h2 {
+  font-size: 14px; font-weight: 600;
+  color: var(--primary); letter-spacing: 2px;
+}
+.sidebar-header .sub {
+  font-size: 11px; color: var(--text-light); margin-top: 3px;
+}
 
-  /* ── 滚动条 ── */
-  .messages::-webkit-scrollbar { width: 4px; }
-  .messages::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+/* 景点列表 */
+.scenic-list {
+  padding: 12px;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.scenic-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius-sm);
+  background: rgba(255,255,255,.55);
+  cursor: pointer; user-select: none;
+  transition: all .2s;
+  border: 1px solid transparent;
+}
+.scenic-item:hover {
+  background: rgba(45,106,79,.08);
+  border-color: rgba(45,106,79,.15);
+  transform: translateX(4px);
+}
+.scenic-item:active {
+  transform: translateX(2px);
+  background: rgba(45,106,79,.12);
+}
+.scenic-item .emoji { font-size: 20px; line-height: 1; }
+.scenic-item .info { min-width: 0; }
+.scenic-item .name { font-size: 13px; font-weight: 500; color: var(--text); }
+.scenic-item .desc { font-size: 11px; color: var(--text-light); margin-top: 1px; }
 
-  /* ── 响应式 ── */
-  @media (max-width: 768px) {
-    .sidebar { display: none; }
-    .msg { max-width: 85%; }
-    .messages { padding: 12px 16px; }
-    .input-area { padding: 12px 16px; }
-  }
+/* Live2D 容器 — 磨砂玻璃效果 */
+.live2d-section {
+  flex: 1; margin: 6px 12px 8px;
+  border-radius: 12px;
+  background: linear-gradient(180deg, rgba(45,106,79,.04) 0%, rgba(254,250,224,.4) 100%);
+  position: relative;
+  display: flex; align-items: center; justify-content: center;
+  overflow: hidden;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(255,255,255,.5);
+}
+#live2d-canvas { width: 100%; height: 100%; object-fit: contain; }
+.avatar-fallback {
+  display: none; flex-direction: column; align-items: center; gap: 6px;
+  color: var(--primary);
+}
+.avatar-fallback .icon {
+  width: 72px; height: 72px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  display: flex; align-items: center; justify-content: center;
+  font-size: 32px; color: #fff;
+  box-shadow: 0 6px 24px rgba(45,106,79,.25);
+}
+.avatar-fallback .label { font-size: 12px; opacity: .65; }
+.avatar-fallback.show { display: flex; }
+
+/* 状态栏 */
+.status-bar {
+  padding: 10px 16px;
+  border-top: 1px solid rgba(0,0,0,.05);
+  display: flex; align-items: center; gap: 8px; font-size: 12px;
+}
+.status-dot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: #9ca3af; transition: background .3s;
+}
+.status-dot.online { background: #22c55e; }
+.status-dot.speaking { background: var(--accent); animation: pulse .6s ease-in-out infinite; }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+/* ═══════════════════════════════════════════════════════════
+   主区
+   ═══════════════════════════════════════════════════════════ */
+.main {
+  flex: 1; display: flex; flex-direction: column;
+  background: transparent;
+}
+
+/* ── 导航栏 #2d6a4f 白字 ── */
+.chat-header {
+  padding: 14px 24px;
+  background: var(--primary);
+  display: flex; align-items: center; gap: 12px;
+  box-shadow: 0 2px 16px rgba(45,106,79,.18);
+}
+.chat-header .logo {
+  font-size: 17px; font-weight: 600;
+  color: #fff; letter-spacing: 1.5px;
+}
+.chat-header .badge {
+  background: rgba(255,255,255,.18);
+  color: #fff; font-size: 11px;
+  padding: 2px 10px; border-radius: 20px;
+}
+
+/* ── 消息区 ── */
+.messages {
+  flex: 1; overflow-y: auto;
+  padding: 20px 24px;
+  display: flex; flex-direction: column; gap: 16px;
+}
+.msg {
+  max-width: 75%; padding: 12px 16px;
+  border-radius: var(--radius-sm);
+  line-height: 1.6; font-size: 14px;
+  animation: fadeIn .3s ease;
+}
+@keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
+
+/* 用户气泡：#2d6a4f 背景 + 白字 */
+.msg.user {
+  align-self: flex-end;
+  background: var(--primary); color: #fff;
+  border-bottom-right-radius: 4px;
+}
+
+/* AI 气泡：#ffffff 背景 + 黑字 */
+.msg.bot {
+  align-self: flex-start;
+  background: var(--surface); color: #1b1b1b;
+  border-bottom-left-radius: 4px;
+  box-shadow: var(--shadow);
+}
+.msg .time { font-size: 11px; opacity: .6; margin-top: 4px; text-align: right; }
+.msg.bot .time { color: var(--text-light); }
+
+/* ── 快捷按钮 × 4 ── */
+.quick-actions {
+  display: flex; gap: 8px;
+  padding: 6px 24px 2px;
+  flex-wrap: wrap;
+}
+.quick-btn {
+  display: flex; align-items: center; gap: 5px;
+  padding: 7px 14px;
+  border: 1px solid rgba(45,106,79,.2);
+  border-radius: 20px;
+  background: rgba(255,255,255,.7);
+  color: var(--primary-dark);
+  font-size: 12px;
+  cursor: pointer; user-select: none;
+  transition: all .2s;
+  white-space: nowrap;
+}
+.quick-btn:hover {
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(45,106,79,.2);
+}
+.quick-btn:active {
+  transform: translateY(0);
+  background: var(--primary-dark);
+}
+
+/* ── 打字动画 ── */
+.typing {
+  align-self: flex-start;
+  margin: 4px 24px;
+  background: var(--surface);
+  padding: 14px 18px;
+  border-radius: var(--radius-sm);
+  display: none; gap: 4px;
+  box-shadow: var(--shadow);
+}
+.typing span {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--primary);
+  animation: bounce 1.2s ease-in-out infinite;
+}
+.typing span:nth-child(2) { animation-delay: .2s; }
+.typing span:nth-child(3) { animation-delay: .4s; }
+@keyframes bounce { 0%,60%,100%{transform:translateY(0)} 30%{transform:translateY(-8px)} }
+
+/* ── 输入区 ── */
+.input-area {
+  padding: 10px 24px 16px;
+  display: flex; gap: 10px; align-items: center;
+}
+.input-area input {
+  flex: 1; padding: 10px 16px;
+  border: 2px solid #40916c;
+  border-radius: 12px;
+  font-size: 14px; outline: none;
+  transition: border-color .2s, box-shadow .2s;
+  background: rgba(255,255,255,.85);
+}
+.input-area input:focus {
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(45,106,79,.12);
+}
+.input-area input::placeholder { color: var(--text-light); }
+
+/* 按钮 #2d6a4f, hover #1b4332 */
+.btn {
+  width: 40px; height: 40px; border: none; border-radius: 50%;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  font-size: 18px; transition: all .2s;
+  background: var(--primary); color: #fff; flex-shrink: 0;
+}
+.btn:hover { background: var(--primary-dark); transform: scale(1.05); }
+.btn:active { transform: scale(.95); }
+.btn.voice { background: var(--accent); }
+.btn.voice:hover { background: #c49463; }
+.btn.voice.recording { background: #ef4444; animation: pulse-red .8s ease-in-out infinite; }
+@keyframes pulse-red { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)} 50%{box-shadow:0 0 0 12px rgba(239,68,68,0)} }
+.btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
+
+/* ── 滚动条 ── */
+.messages::-webkit-scrollbar { width: 4px; }
+.messages::-webkit-scrollbar-thumb { background: #d1d5db; border-radius: 4px; }
+
+/* ═══════════════════════════════════════════════════════════
+   响应式 — 768px 断点
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  .sidebar { display: none; }
+  .msg { max-width: 85%; }
+  .messages { padding: 12px 16px; }
+  .quick-actions { padding: 6px 16px 2px; gap: 6px; }
+  .quick-btn { font-size: 11px; padding: 6px 12px; }
+  .input-area { padding: 10px 16px 14px; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   响应式 — 480px 断点
+   ═══════════════════════════════════════════════════════════ */
+@media (max-width: 480px) {
+  .chat-header { padding: 10px 14px; }
+  .chat-header .logo { font-size: 16px; }
+  .messages { padding: 10px 12px; gap: 12px; }
+  .msg { max-width: 90%; padding: 10px 12px; font-size: 13px; }
+  .quick-actions { padding: 4px 12px 2px; gap: 4px; }
+  .quick-btn { font-size: 10px; padding: 5px 10px; }
+  .input-area { padding: 8px 12px 12px; gap: 8px; }
+  .input-area input { padding: 8px 12px; font-size: 13px; border-radius: 10px; }
+  .btn { width: 36px; height: 36px; font-size: 16px; }
+}
 </style>
 </head>
 <body>
 <div class="app">
-  <!-- 侧栏：数字人 -->
+  <!-- ═══════════════════════════════════════════════════════
+       景点侧栏 240px
+       ═══════════════════════════════════════════════════════ -->
   <aside class="sidebar">
-    <div class="avatar-section">
-      <canvas id="live2d-canvas"></canvas>
-      <div class="avatar-fallback show" id="avatar-fallback">
-        <div class="icon">🏔️</div>
-        <div class="label">西湖导游 · 小西</div>
+    <div class="sidebar-header">
+      <div class="logo-icon">🏔️</div>
+      <h2>西湖十景</h2>
+      <div class="sub">West Lake · Ten Scenes</div>
+    </div>
+
+    <!-- 景点快捷入口 -->
+    <div class="scenic-list">
+      <div class="scenic-item" data-query="请介绍一下三潭印月">
+        <span class="emoji">🏛️</span>
+        <div class="info">
+          <div class="name">三潭印月</div>
+          <div class="desc">西湖第一胜景</div>
+        </div>
+      </div>
+      <div class="scenic-item" data-query="请介绍一下苏堤春晓">
+        <span class="emoji">🌿</span>
+        <div class="info">
+          <div class="name">苏堤春晓</div>
+          <div class="desc">春日漫步好去处</div>
+        </div>
+      </div>
+      <div class="scenic-item" data-query="请介绍一下断桥残雪">
+        <span class="emoji">🌉</span>
+        <div class="info">
+          <div class="name">断桥残雪</div>
+          <div class="desc">许仙白娘子相会</div>
+        </div>
+      </div>
+      <div class="scenic-item" data-query="请介绍一下雷峰夕照">
+        <span class="emoji">🌅</span>
+        <div class="info">
+          <div class="name">雷峰夕照</div>
+          <div class="desc">雷锋塔下夕阳红</div>
+        </div>
       </div>
     </div>
+
+    <!-- Live2D 数字人容器（磨砂玻璃） -->
+    <div class="live2d-section">
+      <canvas id="live2d-canvas"></canvas>
+      <div class="avatar-fallback show" id="avatar-fallback">
+        <div class="icon">🗣️</div>
+        <div class="label">数字人导游 · 小西</div>
+      </div>
+    </div>
+
     <div class="status-bar">
       <span class="status-dot online" id="status-dot"></span>
       <span id="status-text">在线 · 随时为你服务</span>
     </div>
   </aside>
 
-  <!-- 主区：对话 -->
+  <!-- ═══════════════════════════════════════════════════════
+       主区：对话
+       ═══════════════════════════════════════════════════════ -->
   <main class="main">
+    <!-- 导航栏 #2d6a4f 白字 -->
     <div class="chat-header">
-      <h1>🏛️ 西湖导游</h1>
+      <div class="logo">杭州西湖 · 智慧导览</div>
       <span class="badge">AI 小西</span>
     </div>
 
+    <!-- 消息列表 -->
     <div class="messages" id="messages"></div>
+
+    <!-- 4 个快捷按钮 -->
+    <div class="quick-actions">
+      <button class="quick-btn" data-query="请介绍一下西湖十景">🏛️ 西湖十景介绍</button>
+      <button class="quick-btn" data-query="西湖各景点门票价格是多少？">🎫 票价查询</button>
+      <button class="quick-btn" data-query="西湖附近有什么好吃的？">🍜 美食推荐</button>
+      <button class="quick-btn" data-query="推荐一条半日游路线">🗺️ 游览路线</button>
+    </div>
 
     <!-- 打字动画 -->
     <div class="typing" id="typing">
@@ -226,15 +439,17 @@
     const div = document.createElement('div');
     div.className = `msg ${role}`;
     const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
-    div.innerHTML = `${text}<div class="time">${time}</div>`;
+    const timeSpan = document.createElement('div');
+    timeSpan.className = 'time';
+    timeSpan.textContent = time;
+    div.textContent = text;
+    div.appendChild(timeSpan);
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
 
-    // 如果是机器人回答且有音频，自动播放
     if (role === 'bot' && audioUrl) {
       const audio = new Audio(audioUrl);
       audio.play().catch(e => console.warn('自动播放被阻止:', e));
-      // 口型同步指示
       setSpeaking(true);
       audio.onended = () => setSpeaking(false);
       audio.onerror = () => setSpeaking(false);
@@ -306,7 +521,6 @@
       const data = await resp.json();
       showTyping(false);
       if (data.asr_text && !asrText) {
-        // 更新为服务端 ASR 结果
         messagesEl.lastChild.textContent = data.asr_text;
       }
       addMessage(data.reply, 'bot', data.audio_url || null);
@@ -329,11 +543,26 @@
     }
   });
 
+  // ── 快捷按钮事件 ──
+  document.querySelectorAll('.quick-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const query = btn.getAttribute('data-query');
+      if (query) sendTextMessage(query);
+    });
+  });
+
+  // ── 景点侧栏事件 ──
+  document.querySelectorAll('.scenic-item').forEach(item => {
+    item.addEventListener('click', () => {
+      const query = item.getAttribute('data-query');
+      if (query) sendTextMessage(query);
+    });
+  });
+
   // ═════════════════════════════════════════════════════════
   //  语音输入：Web Speech API (降级 ASR)
   // ═════════════════════════════════════════════════════════
 
-  // 检测浏览器语音支持
   const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
 
   if (SpeechRecognition) {
@@ -347,7 +576,6 @@
       const transcript = event.results[0][0].transcript;
       setListening(false);
       voiceBtn.className = 'btn voice';
-      // 直接用文字发送（降级：浏览器 ASR → LLM）
       sendTextMessage(transcript);
     };
 
@@ -365,7 +593,6 @@
       voiceBtn.className = 'btn voice';
     };
 
-    // 语音按钮
     voiceBtn.addEventListener('click', () => {
       if (isRecording) {
         recognition.stop();
@@ -376,30 +603,21 @@
         voiceBtn.className = 'btn voice';
         return;
       }
-      // 开始录音
       isRecording = true;
       voiceBtn.className = 'btn voice recording';
       setListening(true);
 
-      // 同时启动 Web Speech 识别（浏览器 ASR）
-      try {
-        recognition.start();
-      } catch (e) {
-        console.warn('Web Speech 启动失败:', e);
-      }
+      try { recognition.start(); }
+      catch (e) { console.warn('Web Speech 启动失败:', e); }
 
-      // 同时也录原始音频（供服务端 ASR 备用）
       if (navigator.mediaDevices) {
         navigator.mediaDevices.getUserMedia({ audio: true })
           .then(stream => {
             mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
             audioChunks = [];
             mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
-            mediaRecorder.onstop = () => {
-              stream.getTracks().forEach(t => t.stop());
-            };
+            mediaRecorder.onstop = () => { stream.getTracks().forEach(t => t.stop()); };
             mediaRecorder.start();
-            // 8秒后自动停止录音
             setTimeout(() => {
               if (isRecording) {
                 recognition.stop();
@@ -416,17 +634,13 @@
       }
     });
   } else {
-    // 不支持 Web Speech，使用 MediaRecorder + 服务端 ASR
     voiceBtn.addEventListener('click', async () => {
       if (isRecording) {
-        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
-          mediaRecorder.stop();
-        }
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') { mediaRecorder.stop(); }
         isRecording = false;
         voiceBtn.className = 'btn voice';
         return;
       }
-
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         mediaRecorder = new MediaRecorder(stream, { mimeType: 'audio/webm' });
@@ -442,7 +656,6 @@
         isRecording = true;
         voiceBtn.className = 'btn voice recording';
         setListening(true);
-        // 10秒自动停止
         setTimeout(() => {
           if (isRecording && mediaRecorder && mediaRecorder.state !== 'inactive') {
             mediaRecorder.stop();
@@ -459,43 +672,28 @@
   }
 
   // ── Live2D 集成 (Cubism SDK) ──
-  // 模型路径: /static/live2d/default/
   async function initLive2D() {
     const modelPath = '/static/live2d/default/';
-
-    // 检查是否有模型文件
     try {
       const resp = await fetch(modelPath + 'model.model3.json', { method: 'HEAD' });
-      if (!resp.ok) {
-        console.log('无 Live2D 模型文件，使用静态头像');
-        return;
-      }
+      if (!resp.ok) { return; }
     } catch {
-      console.log('Live2D 模型不可用，使用静态头像');
       return;
     }
-
-    // 有模型文件，加载 Cubism SDK
     fallback.classList.remove('show');
-    try {
-      await loadCubismSDK();
-    } catch (err) {
+    try { await loadCubismSDK(); }
+    catch (err) {
       console.warn('Live2D SDK 加载失败:', err);
       fallback.classList.add('show');
     }
   }
 
   async function loadCubismSDK() {
-    // Cubism 4 WebGL SDK 集成钩子
-    // 需要将 live2d.min.js 放入 frontend/static/live2d/
-    // 参见 P3c 景区前端 UI 改造阶段
-    console.log('Live2D SDK 加载钩子（待集成）');
+    // Cubism 4 WebGL SDK 集成钩子（待实现）
   }
 
   // 初始化
   initLive2D();
-
-  // 自动聚焦到输入框
   inputEl.focus();
 
   // 欢迎消息
