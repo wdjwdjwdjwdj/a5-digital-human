@@ -1,0 +1,14 @@
+# LLM
+llm_provider: "deepseek"
+llm_model: "deepseek-chat"
+llm_base_url: "https://api.deepseek.com/v1"
+
+# TTS
+tts_provider: "edge-tts"
+tts_voice: "zh-CN-XiaoxiaoNeural"
+
+# ASR
+asr_provider: "funasr"
+
+# Live2D
+live2d_model: "frontend/static/live2d/default"

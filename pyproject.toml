@@ -1,0 +1,16 @@
+[project]
+name = "a5-digital-human"
+version = "0.1.0"
+description = "第十五届中国软件杯 A5 赛题 - 景区导览AI数字人"
+requires-python = ">=3.10"
+
+[tool.ruff]
+target-version = "py310"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "W", "F", "I", "UP", "B", "SIM"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
