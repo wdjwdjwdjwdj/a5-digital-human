@@ -29,7 +29,7 @@ class MessageRequest(BaseModel):
     """文字对话请求体。"""
 
     query: str = Field(..., description="用户输入文本")
-    session_id: str = Field(default="default", description="会话 ID，支持多轮对话")
+    session_id: str = Field(default="default", description="会话 ID，用于多轮对话")
 
 
 class StreamRequest(BaseModel):
@@ -39,41 +39,38 @@ class StreamRequest(BaseModel):
     session_id: str = Field(default="default", description="会话 ID")
 
 
-def _save_and_log(query: str, reply: str, provider: str = "deepseek", session_id: str = "default") -> None:
-    """保存对话记录到 SQLite。"""
-    chat_repo.save_conversation(query, reply, provider, session_id)
-
-
 @router.post("/message")
 async def send_message(req: MessageRequest) -> dict:
     """文字对话：发送消息 → LLM 回答。
 
     Args:
-        req: 包含 query 字段的 JSON 请求体
+        req: 包含 query 和 session_id 的 JSON 请求体
 
     Returns:
-        {"reply": str, "audio": bool, "session_id": str}
+        {"reply": str, "audio": bool}
     """
-    logger.info("[Chat] 收到文字消息: %s", req.query[:50])
+    logger.info("[Chat] 收到文字消息: %s (session=%s)", req.query[:50], req.session_id[:8])
     reply = await chatbot.chat(req.query, context=_SCENIC_CONTEXT, session_id=req.session_id)
     if reply:
         logger.info("[Chat] 回答: %s", reply[:80])
-        _save_and_log(req.query, reply, session_id=req.session_id)
-        return {"reply": reply, "audio": False, "session_id": req.session_id}
+        chat_repo.save_conversation(req.query, reply, provider="deepseek", session_id=req.session_id)
+        return {"reply": reply, "audio": False}
     logger.warning("[Chat] 回答为空")
-    return {"reply": "抱歉，我现在无法回答，请稍后再试。", "audio": False, "session_id": req.session_id}
+    return {"reply": "抱歉，我现在无法回答，请稍后再试。", "audio": False}
 
 
 @router.post("/voice")
 async def voice_chat(
     audio: UploadFile = File(),  # noqa: B008
     text: str = Form(default=""),
+    session_id: str = Form(default="default"),
 ) -> dict:
     """语音对话：音频 → ASR(可选) → LLM → TTS → 返回音频。
 
     Args:
         audio: 用户录音文件 (WAV/WebM)
         text: 前端 ASR 识别的文本（如果前端已做 ASR）
+        session_id: 会话 ID，用于多轮对话
 
     Returns:
         {"reply": str, "audio_url": str | None, "asr_text": str}
@@ -98,15 +95,15 @@ async def voice_chat(
             logger.error("[Chat] ASR 处理失败: %s", e, exc_info=True)
             return {"reply": "语音识别出错，请用文字输入。", "audio_url": None, "asr_text": ""}
 
-    logger.info("[Chat] 语音识别结果: %s", query[:50])
+    logger.info("[Chat] 语音识别结果: %s (session=%s)", query[:50], session_id[:8])
 
     # LLM 回答
-    reply = await chatbot.chat(query, context=_SCENIC_CONTEXT)
+    reply = await chatbot.chat(query, context=_SCENIC_CONTEXT, session_id=session_id)
     if not reply:
         return {"reply": "抱歉，我现在无法回答。", "audio_url": None, "asr_text": query}
 
-    # 保存对话记录
-    _save_and_log(query, reply)
+    # 持久化对话记录
+    chat_repo.save_conversation(query, reply, provider="deepseek", session_id=session_id)
 
     # TTS 合成
     audio_data = await tts_manager.synthesize(reply)
@@ -125,8 +122,15 @@ async def voice_chat(
 
 @router.post("/stream")
 async def stream_message(req: StreamRequest) -> dict:
-    """流式对话接口（轮询模式，用于前端打字机效果）。"""
+    """流式对话接口（轮询模式，用于前端打字机效果）。
+
+    Args:
+        req: 包含 query 和 session_id 的请求体
+
+    Returns:
+        {"reply": str}
+    """
     reply = await chatbot.chat(req.query, context=_SCENIC_CONTEXT, session_id=req.session_id)
     if reply:
-        _save_and_log(req.query, reply, session_id=req.session_id)
+        chat_repo.save_conversation(req.query, reply, provider="deepseek", session_id=req.session_id)
     return {"reply": reply or "抱歉，我现在无法回答。"}

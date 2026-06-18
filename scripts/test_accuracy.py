@@ -110,7 +110,7 @@ async def evaluate_accuracy() -> float:
     _out(f"{'=' * 60}\n")
 
     for i, (question, keywords) in enumerate(test_cases, 1):
-        reply = await chatbot.chat(query=question)
+        reply = await chatbot.chat(query=question, session_id="accuracy_test")
         if reply and evaluate_keywords(reply, keywords):
             correct += 1
             status = "✅"
