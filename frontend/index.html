@@ -2,39 +2,45 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>杭州西湖 · 智慧导览</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>杭州西湖 · 水墨导览</title>
 <style>
 /* ═══════════════════════════════════════════════════════════
-   设计主题：杭州西湖 · 智慧导览
-   主色 #2d6a4f / 底色 #fefae0 / 强调色 #d4a373
+   水墨画风主题 — 杭州西湖 · 智慧导览
+   墨绿 #2c3e2d / 宣纸 #f5f0e8 / 赭石 #8b4513 / 墨色 #3a3226
    ═══════════════════════════════════════════════════════════ */
+@import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&family=Noto+Serif+SC:wght@400;600&display=swap');
+
 :root {
-  --primary: #2d6a4f;
-  --primary-light: #40916c;
-  --primary-dark: #1b4332;
-  --bg: #fefae0;
-  --accent: #d4a373;
-  --accent-light: #e9c46a;
-  --text: #1b1b1b;
-  --text-light: #6b7280;
-  --surface: #ffffff;
-  --shadow: 0 4px 24px rgba(0,0,0,.08);
+  --primary: #2c3e2d;
+  --primary-light: #3d5a3e;
+  --primary-dark: #1a2a1b;
+  --bg: #f5f0e8;
+  --accent: #8b4513;
+  --accent-light: #c1783e;
+  --text: #3a3226;
+  --text-light: #8c8070;
+  --surface: rgba(255,252,245,0.95);
+  --shadow: 0 4px 24px rgba(0,0,0,.06);
   --radius: 16px;
   --radius-sm: 10px;
 }
 * { margin: 0; padding: 0; box-sizing: border-box; }
 body {
-  font-family: "Noto Sans SC", "PingFang SC", -apple-system, BlinkMacSystemFont,
-               "Segoe UI", Roboto, sans-serif;
-  background: #fefae0;
-  /* 水波纹渐变装饰 */
+  font-family: "Noto Serif SC", "PingFang SC", "STSong", "SimSun", serif;
+  background: var(--bg);
   background-image:
-    radial-gradient(ellipse at 15% 40%, rgba(45,106,79,.07) 0%, transparent 55%),
-    radial-gradient(ellipse at 85% 25%, rgba(212,163,115,.08) 0%, transparent 50%),
-    radial-gradient(ellipse at 50% 75%, rgba(64,145,108,.05) 0%, transparent 45%);
+    radial-gradient(ellipse at 15% 30%, rgba(44,62,45,.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 60%, rgba(139,69,19,.05) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 85%, rgba(44,62,45,.04) 0%, transparent 45%),
+    linear-gradient(180deg, transparent 0%, rgba(139,69,19,.02) 100%);
   color: var(--text);
   height: 100vh; overflow: hidden;
+}
+body::before {
+  content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5 Q40 15 30 25 Q20 15 30 5' fill='none' stroke='%238c8070' stroke-width='.3' opacity='.15'/%3E%3C/svg%3E");
+  pointer-events: none; z-index: 0;
 }
 
 /* ── 布局 ── */
@@ -151,82 +157,122 @@ body {
   background: transparent;
 }
 
-/* ── 导航栏 #2d6a4f 白字 ── */
+/* ── 导航栏 ── */
 .chat-header {
   padding: 14px 24px;
-  background: var(--primary);
+  background: linear-gradient(135deg, var(--primary-dark), var(--primary));
   display: flex; align-items: center; gap: 12px;
-  box-shadow: 0 2px 16px rgba(45,106,79,.18);
+  box-shadow: 0 2px 16px rgba(44,62,45,.2);
+  position: relative; z-index: 1;
 }
 .chat-header .logo {
-  font-size: 17px; font-weight: 600;
-  color: #fff; letter-spacing: 1.5px;
+  font-family: "Ma Shan Zheng", "KaiTi", cursive;
+  font-size: 20px; font-weight: 400;
+  color: #fff; letter-spacing: 3px;
 }
 .chat-header .badge {
-  background: rgba(255,255,255,.18);
-  color: #fff; font-size: 11px;
+  background: rgba(255,255,255,.15);
+  color: #fff; font-size: 10px;
   padding: 2px 10px; border-radius: 20px;
+  font-family: "ZCOOL XiaoWei", "KaiTi", serif;
 }
 
 /* ── 消息区 ── */
 .messages {
   flex: 1; overflow-y: auto;
   padding: 20px 24px;
-  display: flex; flex-direction: column; gap: 16px;
+  display: flex; flex-direction: column; gap: 14px;
+  position: relative; z-index: 1;
 }
 .msg {
   max-width: 75%; padding: 12px 16px;
   border-radius: var(--radius-sm);
-  line-height: 1.6; font-size: 14px;
+  line-height: 1.7; font-size: 14px;
   animation: fadeIn .3s ease;
+  position: relative;
 }
 @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
-/* 用户气泡：#2d6a4f 背景 + 白字 */
+/* 用户气泡：水墨笔触边框 */
 .msg.user {
   align-self: flex-end;
-  background: var(--primary); color: #fff;
-  border-bottom-right-radius: 4px;
+  background: linear-gradient(135deg, var(--primary), var(--primary-light));
+  color: #f5f0e8;
+  border-bottom-right-radius: 2px;
+  box-shadow: 0 2px 12px rgba(44,62,45,.15);
+  border: 1px solid rgba(255,255,255,.1);
 }
-
-/* AI 气泡：#ffffff 背景 + 黑字 */
+/* AI 气泡：宣纸质感 */
 .msg.bot {
   align-self: flex-start;
-  background: var(--surface); color: #1b1b1b;
-  border-bottom-left-radius: 4px;
+  background: var(--surface);
+  color: var(--text);
+  border-bottom-left-radius: 2px;
   box-shadow: var(--shadow);
+  border: 1px solid rgba(139,69,19,.12);
+  border-left: 3px solid var(--accent);
 }
-.msg .time { font-size: 11px; opacity: .6; margin-top: 4px; text-align: right; }
+.msg .time {
+  font-size: 10px; opacity: .5; margin-top: 6px; text-align: right;
+  font-family: "ZCOOL XiaoWei", "KaiTi", serif;
+  writing-mode: horizontal-tb;
+}
 .msg.bot .time { color: var(--text-light); }
 
-/* ── 快捷按钮 × 4 ── */
+/* ── 快捷入口 × 5 ── */
 .quick-actions {
   display: flex; gap: 8px;
-  padding: 6px 24px 2px;
+  padding: 8px 24px 4px;
   flex-wrap: wrap;
 }
 .quick-btn {
   display: flex; align-items: center; gap: 5px;
-  padding: 7px 14px;
-  border: 1px solid rgba(45,106,79,.2);
-  border-radius: 20px;
-  background: rgba(255,255,255,.7);
-  color: var(--primary-dark);
+  padding: 8px 14px;
+  border: 1px solid rgba(44,62,45,.15);
+  border-radius: 6px;
+  background: var(--surface);
+  color: var(--primary);
   font-size: 12px;
+  font-family: "ZCOOL XiaoWei", "KaiTi", serif;
   cursor: pointer; user-select: none;
   transition: all .2s;
   white-space: nowrap;
+  box-shadow: 0 1px 4px rgba(0,0,0,.04);
 }
 .quick-btn:hover {
   background: var(--primary);
   color: #fff;
   border-color: var(--primary);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(45,106,79,.2);
+  box-shadow: 0 4px 12px rgba(44,62,45,.18);
 }
 .quick-btn:active {
   transform: translateY(0);
   background: var(--primary-dark);
+}
+
+/* ── 人群标签 ── */
+.crowd-tags {
+  display: flex; gap: 6px;
+  padding: 4px 24px 8px;
+  flex-wrap: wrap;
+}
+.crowd-tag {
+  padding: 5px 12px;
+  border: 1px solid rgba(139,69,19,.2);
+  border-radius: 16px;
+  background: rgba(255,252,245,.7);
+  color: var(--accent);
+  font-size: 11px;
+  cursor: pointer; user-select: none;
+  transition: all .2s;
+  font-family: "ZCOOL XiaoWei", "KaiTi", serif;
+}
+.crowd-tag:hover, .crowd-tag.active {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  transform: translateY(-1px);
 }
 
 /* ── 底部 footer ── */
@@ -432,21 +478,31 @@ body {
        主区：对话
        ═══════════════════════════════════════════════════════ -->
   <main class="main">
-    <!-- 导航栏 #2d6a4f 白字 -->
+    <!-- 导航栏 -->
     <div class="chat-header">
-      <div class="logo">杭州西湖 · 智慧导览</div>
+      <div class="logo">杭州西湖 · 水墨导览</div>
       <span class="badge">AI 小西</span>
     </div>
 
     <!-- 消息列表 -->
     <div class="messages" id="messages"></div>
 
-    <!-- 4 个快捷按钮 -->
+    <!-- 人群属性标签 -->
+    <div class="crowd-tags" id="crowd-tags">
+      <button class="crowd-tag" data-query="推荐一条适合家庭出游的西湖路线，有老人小孩">👨‍👩‍👧‍👦 家庭</button>
+      <button class="crowd-tag" data-query="推荐一条适合情侣约会的西湖浪漫路线">💑 情侣</button>
+      <button class="crowd-tag" data-query="推荐一条适合朋友结伴的西湖打卡路线">👫 朋友</button>
+      <button class="crowd-tag" data-query="推荐一条适合老年人游西湖的轻松路线，少走路">👴 老人</button>
+      <button class="crowd-tag" data-query="推荐一条适合小朋友游西湖的亲子路线">👶 儿童</button>
+    </div>
+
+    <!-- 5 个实用快捷入口 -->
     <div class="quick-actions">
-      <button class="quick-btn" data-query="请介绍一下西湖十景">🏛️ 西湖十景介绍</button>
-      <button class="quick-btn" data-query="西湖各景点门票价格是多少？">🎫 票价查询</button>
-      <button class="quick-btn" data-query="西湖附近有什么好吃的？">🍜 美食推荐</button>
-      <button class="quick-btn" data-query="推荐一条半日游路线">🗺️ 游览路线</button>
+      <button class="quick-btn" data-query="西湖附近有什么好吃的推荐？住宿在哪里比较方便？">🍜 吃住推荐</button>
+      <button class="quick-btn" data-query="去西湖怎么坐地铁和公交？自驾停哪里？">🚇 交通指引</button>
+      <button class="quick-btn" data-query="推荐一条西湖一日游路线">🗺️ 路线推荐</button>
+      <button class="quick-btn" data-query="西湖有哪些景点？请全部介绍一下">🏛️ 景点汇总</button>
+      <button class="quick-btn" id="toilet-btn">🚻 厕所位置</button>
     </div>
 
     <!-- 打字动画 -->
@@ -456,15 +512,15 @@ body {
 
     <!-- 输入区 -->
     <div class="input-area">
-      <input type="text" id="text-input" placeholder="输入你的问题，例如「西湖有哪些景点？」" />
+      <input type="text" id="text-input" placeholder="请输入您的问题…" />
       <button class="btn voice" id="voice-btn" title="语音输入">🎤</button>
-      <button class="btn" id="send-btn" title="发送">➤</button>
+      <button class="btn" id="send-btn" title="发送">↩</button>
     </div>
 
     <!-- 底部 footer -->
     <footer class="footer">
       <span>第十五届"中国软件杯" A5 赛题 · 景区导览AI数字人</span>
-      <span>基于 Open-LLM-VTuber · DeepSeek · Dify RAG · FunASR · Edge-TTS · Live2D</span>
+      <span>水墨画风 · DeepSeek · FunASR · Edge-TTS · Live2D</span>
     </footer>
   </main>
 </div>
@@ -494,6 +550,33 @@ body {
   let recognition = null;
   let mediaRecorder = null;
   let audioChunks = [];
+  const CHAT_STORAGE_KEY = 'a5_chat_history';
+  const MAX_HISTORY = 50;
+
+  // ── localStorage 持久化 ──
+  function saveHistory() {
+    const msgs = [];
+    messagesEl.querySelectorAll('.msg').forEach(el => {
+      msgs.push({
+        role: el.classList.contains('user') ? 'user' : 'bot',
+        text: el.childNodes[0] ? el.childNodes[0].textContent : '',
+        time: el.querySelector('.time') ? el.querySelector('.time').textContent : '',
+      });
+    });
+    if (msgs.length > MAX_HISTORY) msgs.splice(0, msgs.length - MAX_HISTORY);
+    try { localStorage.setItem(CHAT_STORAGE_KEY, JSON.stringify(msgs)); } catch(e) {}
+  }
+
+  function loadHistory() {
+    try {
+      const raw = localStorage.getItem(CHAT_STORAGE_KEY);
+      if (!raw) return false;
+      const msgs = JSON.parse(raw);
+      if (!msgs.length) return false;
+      msgs.forEach(m => addMessage(m.text, m.role));
+      return true;
+    } catch(e) { return false; }
+  }
 
   // ── 添加消息 ──
   function addMessage(text, role, audioUrl) {
@@ -507,6 +590,7 @@ body {
     div.appendChild(timeSpan);
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
+    saveHistory();
 
     if (role === 'bot' && audioUrl) {
       const audio = new Audio(audioUrl);
@@ -613,6 +697,35 @@ body {
   document.querySelectorAll('.quick-btn').forEach(btn => {
     btn.addEventListener('click', () => {
       const query = btn.getAttribute('data-query');
+      if (query) sendTextMessage(query);
+    });
+  });
+
+  // ── 厕所按钮 ──
+  const toiletBtn = document.getElementById('toilet-btn');
+  if (toiletBtn) {
+    toiletBtn.addEventListener('click', () => {
+      const toiletInfo = [
+        '🚻 西湖周边公共厕所位置：\n',
+        '1. 断桥入口 — 北山街断桥入口处',
+        '2. 苏堤南口 — 南山路苏堤入口',
+        '3. 花港观鱼 — 花港公园内',
+        '4. 雷峰塔 — 雷峰塔景区入口旁',
+        '5. 三潭印月 — 湖滨码头售票处旁',
+        '6. 音乐喷泉 — 湖滨路音乐喷泉广场',
+        '7. 白堤中段 — 平湖秋月旁',
+        '8. 柳浪闻莺 — 柳浪闻莺公园内',
+        '\n💡 所有厕所均免费开放，部分有第三卫生间。'
+      ].join('\n');
+      addMessage('🚻 西湖厕所位置', 'user');
+      addMessage(toiletInfo, 'bot');
+    });
+  }
+
+  // ── 人群标签事件 ──
+  document.querySelectorAll('.crowd-tag').forEach(tag => {
+    tag.addEventListener('click', () => {
+      const query = tag.getAttribute('data-query');
       if (query) sendTextMessage(query);
     });
   });
@@ -758,14 +871,17 @@ body {
     // Cubism 4 WebGL SDK 集成钩子（待实现）
   }
 
-  // 初始化
+  // ── 初始化 ──
   initLive2D();
-  inputEl.focus();
 
-  // 欢迎消息
-  setTimeout(() => {
-    addMessage('你好！我是西湖导游小西 🏔️，欢迎来杭州西湖游玩！你可以问我关于景点、美食、路线等问题。', 'bot');
-  }, 500);
+  // 尝试恢复历史对话
+  const hasHistory = loadHistory();
+  if (!hasHistory) {
+    // 首次访问：AI 主动欢迎引导
+    setTimeout(() => {
+      addMessage('🏔️ 欢迎来到杭州西湖！我是您的智能导游 **小西**。\n\n在为您推荐路线之前，想先了解您的情况：\n\n👥 **和谁一起？** — 家庭出游 / 情侣约会 / 朋友结伴 / 带老人 / 带小朋友\n🚗 **出行方式？** — 自驾 / 地铁 / 公交 / 打车\n⏰ **游玩时长？** — 半天 / 一天 / 两天\n💰 **预算偏好？** — 经济实惠 / 适中 / 奢华体验\n\n您可以点击下方标签或直接告诉我哦～', 'bot');
+    }, 500);
+  }
 
 })();
 </script>
