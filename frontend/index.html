@@ -248,6 +248,17 @@ body {
   border-radius: var(--radius-sm);
   display: none; gap: 4px;
   box-shadow: var(--shadow);
+  /* 脱离正常流，避免布局抖动 */
+  position: absolute;
+  z-index: 1;
+  transition: opacity .15s;
+  opacity: 0; pointer-events: none;
+}
+.typing.show {
+  display: flex;
+  opacity: 1;
+  pointer-events: auto;
+  position: relative;
 }
 .typing span {
   width: 6px; height: 6px; border-radius: 50%;
@@ -529,7 +540,11 @@ body {
 
   // ── 显示打字动画 ──
   function showTyping(show) {
-    typingEl.style.display = show ? 'flex' : 'none';
+    if (show) {
+      typingEl.classList.add('show');
+    } else {
+      typingEl.classList.remove('show');
+    }
   }
 
   // ── 发送文字消息 ──
