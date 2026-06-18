@@ -58,8 +58,6 @@ class ChatBot:
         if self._dify_configured():
             reply = await self._dify_or_fallback(query, session_id)
             if reply:
-                self._add_history(session_id, "user", query)
-                self._add_history(session_id, "assistant", reply)
                 return reply
             logger.info("[ChatBot] Dify 不可用，降级至直连 DeepSeek")
 
