@@ -221,42 +221,46 @@ body::before {
 
 /* ── 快捷入口 × 5 ── */
 .quick-actions {
-  display: flex; gap: 8px;
-  padding: 8px 24px 4px;
+  display: flex; gap: 6px;
+  padding: 8px 16px 4px;
   flex-wrap: wrap;
 }
 .quick-btn {
-  display: flex; align-items: center; gap: 5px;
-  padding: 8px 14px;
-  border: 1px solid rgba(44,62,45,.15);
-  border-radius: 6px;
+  display: flex; align-items: center; gap: 4px;
+  padding: 7px 12px;
+  border: 1px solid rgba(44,62,45,.12);
+  border-radius: 18px;
   background: var(--surface);
   color: var(--primary);
-  font-size: 12px;
+  font-size: 11px;
   font-family: "ZCOOL XiaoWei", "KaiTi", serif;
   cursor: pointer; user-select: none;
   transition: all .2s;
   white-space: nowrap;
-  box-shadow: 0 1px 4px rgba(0,0,0,.04);
+  box-shadow: 0 1px 3px rgba(0,0,0,.03);
 }
-.quick-btn:hover {
+.quick-btn:hover, .quick-btn.active {
   background: var(--primary);
   color: #fff;
   border-color: var(--primary);
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(44,62,45,.18);
 }
-.quick-btn:active {
-  transform: translateY(0);
-  background: var(--primary-dark);
+.quick-btn.primary-btn {
+  background: var(--accent);
+  color: #fff;
+  border-color: var(--accent);
+  font-weight: 600;
+}
+.quick-btn.primary-btn:hover {
+  background: var(--accent-light);
 }
 
-/* ── 人群标签 ── */
-.crowd-tags {
-  display: flex; gap: 6px;
-  padding: 4px 24px 8px;
+/* ── 人群选择面板（默认隐藏） ── */
+.crowd-panel {
+  display: none; gap: 6px;
+  padding: 6px 16px 2px;
   flex-wrap: wrap;
 }
+.crowd-panel.show { display: flex; }
 .crowd-tag {
   padding: 5px 12px;
   border: 1px solid rgba(139,69,19,.2);
@@ -268,11 +272,9 @@ body::before {
   transition: all .2s;
   font-family: "ZCOOL XiaoWei", "KaiTi", serif;
 }
-.crowd-tag:hover, .crowd-tag.active {
+.crowd-tag:hover {
   background: var(--accent);
   color: #fff;
-  border-color: var(--accent);
-  transform: translateY(-1px);
 }
 
 /* ── 底部 footer ── */
@@ -487,22 +489,22 @@ body::before {
     <!-- 消息列表 -->
     <div class="messages" id="messages"></div>
 
-    <!-- 人群属性标签 -->
-    <div class="crowd-tags" id="crowd-tags">
-      <button class="crowd-tag" data-query="推荐一条适合家庭出游的西湖路线，有老人小孩">👨‍👩‍👧‍👦 家庭</button>
-      <button class="crowd-tag" data-query="推荐一条适合情侣约会的西湖浪漫路线">💑 情侣</button>
-      <button class="crowd-tag" data-query="推荐一条适合朋友结伴的西湖打卡路线">👫 朋友</button>
-      <button class="crowd-tag" data-query="推荐一条适合老年人游西湖的轻松路线，少走路">👴 老人</button>
-      <button class="crowd-tag" data-query="推荐一条适合小朋友游西湖的亲子路线">👶 儿童</button>
-    </div>
-
     <!-- 5 个实用快捷入口 -->
     <div class="quick-actions">
-      <button class="quick-btn" data-query="西湖附近有什么好吃的推荐？住宿在哪里比较方便？">🍜 吃住推荐</button>
-      <button class="quick-btn" data-query="去西湖怎么坐地铁和公交？自驾停哪里？">🚇 交通指引</button>
-      <button class="quick-btn" data-query="推荐一条西湖一日游路线">🗺️ 路线推荐</button>
-      <button class="quick-btn" data-query="西湖有哪些景点？请全部介绍一下">🏛️ 景点汇总</button>
-      <button class="quick-btn" id="toilet-btn">🚻 厕所位置</button>
+      <button class="quick-btn" data-query="西湖附近有什么好吃的推荐？住宿在哪里比较方便？">🍜 吃住</button>
+      <button class="quick-btn" data-query="去西湖怎么坐地铁和公交？自驾停哪里？">🚇 交通</button>
+      <button class="quick-btn primary-btn" id="route-btn">🗺️ 路线</button>
+      <button class="quick-btn" data-query="西湖有哪些景点？请全部介绍一下">🏛️ 景点</button>
+      <button class="quick-btn" id="toilet-btn">🚻 厕所</button>
+    </div>
+
+    <!-- 人群选择面板（点击路线按钮展开） -->
+    <div class="crowd-panel" id="crowd-panel">
+      <button class="crowd-tag" data-query="推荐一条适合家庭出游的西湖路线">👨‍👩‍👧‍👦 家庭</button>
+      <button class="crowd-tag" data-query="推荐一条适合情侣约会的西湖浪漫路线">💑 情侣</button>
+      <button class="crowd-tag" data-query="推荐一条适合朋友结伴的西湖打卡路线">👫 朋友</button>
+      <button class="crowd-tag" data-query="推荐一条适合老年人游西湖的轻松路线">👴 老人</button>
+      <button class="crowd-tag" data-query="推荐一条适合小朋友游西湖的亲子路线">👶 儿童</button>
     </div>
 
     <!-- 打字动画 -->
@@ -722,13 +724,31 @@ body::before {
     });
   }
 
-  // ── 人群标签事件 ──
-  document.querySelectorAll('.crowd-tag').forEach(tag => {
-    tag.addEventListener('click', () => {
-      const query = tag.getAttribute('data-query');
-      if (query) sendTextMessage(query);
+  // ── 路线按钮：展开/收起人群面板 ──
+  const routeBtn = document.getElementById('route-btn');
+  const crowdPanel = document.getElementById('crowd-panel');
+  if (routeBtn && crowdPanel) {
+    routeBtn.addEventListener('click', () => {
+      const isOpen = crowdPanel.classList.toggle('show');
+      routeBtn.classList.toggle('active', isOpen);
     });
-  });
+    // 点击人群标签时自动收起面板
+    crowdPanel.querySelectorAll('.crowd-tag').forEach(tag => {
+      tag.addEventListener('click', () => {
+        const query = tag.getAttribute('data-query');
+        if (query) sendTextMessage(query);
+        crowdPanel.classList.remove('show');
+        routeBtn.classList.remove('active');
+      });
+    });
+    // 点击其他地方关闭面板
+    document.addEventListener('click', (e) => {
+      if (!routeBtn.contains(e.target) && !crowdPanel.contains(e.target)) {
+        crowdPanel.classList.remove('show');
+        routeBtn.classList.remove('active');
+      }
+    });
+  }
 
   // ── 景点侧栏事件 ──
   document.querySelectorAll('.scenic-item').forEach(item => {
