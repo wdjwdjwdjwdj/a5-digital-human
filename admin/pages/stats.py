@@ -215,6 +215,7 @@ def _ensure_tables() -> None:
                 reply TEXT NOT NULL,
                 provider TEXT DEFAULT 'deepseek',
                 satisfaction INTEGER DEFAULT NULL,
+                session_id TEXT DEFAULT 'default',
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
             """

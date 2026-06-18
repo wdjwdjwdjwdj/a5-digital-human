@@ -8,6 +8,7 @@ from tempfile import NamedTemporaryFile
 from fastapi import APIRouter, File, Form, UploadFile
 from pydantic import BaseModel, Field
 
+from backend.repository.chat_repo import chat_repo
 from backend.services.chatbot import chatbot
 from backend.services.tts_service import tts_manager
 
@@ -20,6 +21,7 @@ _SCENIC_CONTEXT = (
     "你是杭州西湖景区的智能导游，名叫'小西'。"
     "请用热情、专业的语气回答游客关于西湖的问题。"
     "提供景点介绍、历史文化、游览路线、美食推荐等信息。"
+    "每次回答控制在 100 字以内，口语化。"
 )
 
 
@@ -27,12 +29,19 @@ class MessageRequest(BaseModel):
     """文字对话请求体。"""
 
     query: str = Field(..., description="用户输入文本")
+    session_id: str = Field(default="default", description="会话 ID，支持多轮对话")
 
 
 class StreamRequest(BaseModel):
     """流式对话请求体。"""
 
     query: str = Field(..., description="用户输入文本")
+    session_id: str = Field(default="default", description="会话 ID")
+
+
+def _save_and_log(query: str, reply: str, provider: str = "deepseek", session_id: str = "default") -> None:
+    """保存对话记录到 SQLite。"""
+    chat_repo.save_conversation(query, reply, provider, session_id)
 
 
 @router.post("/message")
@@ -43,15 +52,16 @@ async def send_message(req: MessageRequest) -> dict:
         req: 包含 query 字段的 JSON 请求体
 
     Returns:
-        {"reply": str, "audio": bool}
+        {"reply": str, "audio": bool, "session_id": str}
     """
     logger.info("[Chat] 收到文字消息: %s", req.query[:50])
-    reply = await chatbot.chat(req.query, context=_SCENIC_CONTEXT)
+    reply = await chatbot.chat(req.query, context=_SCENIC_CONTEXT, session_id=req.session_id)
     if reply:
         logger.info("[Chat] 回答: %s", reply[:80])
-        return {"reply": reply, "audio": False}
+        _save_and_log(req.query, reply, session_id=req.session_id)
+        return {"reply": reply, "audio": False, "session_id": req.session_id}
     logger.warning("[Chat] 回答为空")
-    return {"reply": "抱歉，我现在无法回答，请稍后再试。", "audio": False}
+    return {"reply": "抱歉，我现在无法回答，请稍后再试。", "audio": False, "session_id": req.session_id}
 
 
 @router.post("/voice")
@@ -95,6 +105,9 @@ async def voice_chat(
     if not reply:
         return {"reply": "抱歉，我现在无法回答。", "audio_url": None, "asr_text": query}
 
+    # 保存对话记录
+    _save_and_log(query, reply)
+
     # TTS 合成
     audio_data = await tts_manager.synthesize(reply)
     audio_url = None
@@ -113,5 +126,7 @@ async def voice_chat(
 @router.post("/stream")
 async def stream_message(req: StreamRequest) -> dict:
     """流式对话接口（轮询模式，用于前端打字机效果）。"""
-    reply = await chatbot.chat(req.query, context=_SCENIC_CONTEXT)
+    reply = await chatbot.chat(req.query, context=_SCENIC_CONTEXT, session_id=req.session_id)
+    if reply:
+        _save_and_log(req.query, reply, session_id=req.session_id)
     return {"reply": reply or "抱歉，我现在无法回答。"}
