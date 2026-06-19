@@ -2,7 +2,7 @@
 <html lang="zh-CN">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>杭州西湖 · 水墨导览</title>
 
 <!-- Three.js VRM importmap -->
@@ -71,8 +71,8 @@ body::before {
 .sidebar {
   width: 240px; min-width: 240px;
   background: rgba(255,255,255,.72);
-  backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
+  backdrop-filter: blur(16px);
   display: flex; flex-direction: column;
   border-right: 1px solid rgba(0,0,0,.06);
 }
@@ -109,7 +109,7 @@ body::before {
   padding: 9px 12px;
   border-radius: var(--radius-sm);
   background: rgba(255,255,255,.55);
-  cursor: pointer; user-select: none;
+  cursor: pointer; -webkit-user-select: none; user-select: none;
   transition: all .2s;
   border: 1px solid transparent;
 }
@@ -135,8 +135,8 @@ body::before {
   position: relative;
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
-  backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
   border: 1px solid rgba(255,255,255,.5);
 }
 #live2d-canvas { width: 100%; height: 100%; object-fit: contain; }
@@ -168,7 +168,7 @@ body::before {
 .status-dot.speaking { background: var(--accent); animation: pulse .6s ease-in-out infinite; }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
 
-/* ═══════════════════════════════════════════════════════════
+/* opacity/tranform-only for perf — no paint-triggering props *//* ═══════════════════════════════════════════════════════════
    主区
    ═══════════════════════════════════════════════════════════ */
 .main {
@@ -212,7 +212,7 @@ body::before {
 }
 @keyframes fadeIn { from{opacity:0;transform:translateY(8px)} to{opacity:1;transform:translateY(0)} }
 
-/* 用户气泡：水墨笔触边框 */
+/* ↓ fadeIn uses transform — acceptable in low-freq animation *//* 用户气泡：水墨笔触边框 */
 .msg.user {
   align-self: flex-end;
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
@@ -253,7 +253,7 @@ body::before {
   color: var(--primary);
   font-size: 12px;
   font-family: "ZCOOL XiaoWei", "KaiTi", serif;
-  cursor: pointer; user-select: none;
+  cursor: pointer; -webkit-user-select: none; user-select: none;
   transition: all .2s;
   white-space: nowrap;
   box-shadow: 0 1px 4px rgba(0,0,0,.04);
@@ -283,7 +283,7 @@ body::before {
   background: rgba(255,252,245,.7);
   color: var(--accent);
   font-size: 11px;
-  cursor: pointer; user-select: none;
+  cursor: pointer; -webkit-user-select: none; user-select: none;
   transition: all .2s;
   font-family: "ZCOOL XiaoWei", "KaiTi", serif;
 }
@@ -508,20 +508,20 @@ body::before {
 
     <!-- 人群属性标签 -->
     <div class="crowd-tags" id="crowd-tags">
-      <button class="crowd-tag" data-query="推荐一条适合家庭出游的西湖路线，有老人小孩">👨‍👩‍👧‍👦 家庭</button>
-      <button class="crowd-tag" data-query="推荐一条适合情侣约会的西湖浪漫路线">💑 情侣</button>
-      <button class="crowd-tag" data-query="推荐一条适合朋友结伴的西湖打卡路线">👫 朋友</button>
-      <button class="crowd-tag" data-query="推荐一条适合老年人游西湖的轻松路线，少走路">👴 老人</button>
-      <button class="crowd-tag" data-query="推荐一条适合小朋友游西湖的亲子路线">👶 儿童</button>
+      <button type="button" class="crowd-tag" data-query="推荐一条适合家庭出游的西湖路线，有老人小孩">👨‍👩‍👧‍👦 家庭</button>
+      <button type="button" class="crowd-tag" data-query="推荐一条适合情侣约会的西湖浪漫路线">💑 情侣</button>
+      <button type="button" class="crowd-tag" data-query="推荐一条适合朋友结伴的西湖打卡路线">👫 朋友</button>
+      <button type="button" class="crowd-tag" data-query="推荐一条适合老年人游西湖的轻松路线，少走路">👴 老人</button>
+      <button type="button" class="crowd-tag" data-query="推荐一条适合小朋友游西湖的亲子路线">👶 儿童</button>
     </div>
 
     <!-- 5 个实用快捷入口 -->
     <div class="quick-actions">
-      <button class="quick-btn" data-query="西湖附近有什么好吃的推荐？住宿在哪里比较方便？">🍜 吃住推荐</button>
-      <button class="quick-btn" data-query="去西湖怎么坐地铁和公交？自驾停哪里？">🚇 交通指引</button>
-      <button class="quick-btn" data-query="推荐一条西湖一日游路线">🗺️ 路线推荐</button>
-      <button class="quick-btn" data-query="西湖有哪些景点？请全部介绍一下">🏛️ 景点汇总</button>
-      <button class="quick-btn" id="toilet-btn">🚻 厕所位置</button>
+      <button type="button" class="quick-btn" data-query="西湖附近有什么好吃的推荐？住宿在哪里比较方便？">🍜 吃住推荐</button>
+      <button type="button" class="quick-btn" data-query="去西湖怎么坐地铁和公交？自驾停哪里？">🚇 交通指引</button>
+      <button type="button" class="quick-btn" data-query="推荐一条西湖一日游路线">🗺️ 路线推荐</button>
+      <button type="button" class="quick-btn" data-query="西湖有哪些景点？请全部介绍一下">🏛️ 景点汇总</button>
+      <button type="button" class="quick-btn" id="toilet-btn">🚻 厕所位置</button>
     </div>
 
     <!-- 打字动画 -->
@@ -532,8 +532,8 @@ body::before {
     <!-- 输入区 -->
     <div class="input-area">
       <input type="text" id="text-input" placeholder="请输入您的问题…" />
-      <button class="btn voice" id="voice-btn" title="语音输入">🎤</button>
-      <button class="btn" id="send-btn" title="发送">↩</button>
+      <button type="button" class="btn voice" id="voice-btn" title="语音输入">🎤</button>
+      <button type="button" class="btn" id="send-btn" title="发送">↩</button>
     </div>
 
     <!-- 底部 footer -->

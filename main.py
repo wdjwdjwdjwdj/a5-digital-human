@@ -8,7 +8,7 @@ from pathlib import Path
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from backend.config import settings
@@ -60,6 +60,36 @@ app = FastAPI(
     version="0.1.0",
     lifespan=lifespan,
 )
+
+# ── 安全响应头中间件（必须在 app 创建后面） ─────────────
+_SELF = "'self'"
+_CSP = (
+    f"default-src {_SELF}; "
+    f"script-src {_SELF} 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
+    f"style-src {_SELF} 'unsafe-inline' https://fonts.googleapis.com; "
+    f"img-src {_SELF} data: https:; "
+    f"font-src {_SELF} https://fonts.gstatic.com; "
+    f"connect-src {_SELF} ws://localhost:* http://localhost:*; "
+    f"frame-src 'none'; object-src 'none'; base-uri {_SELF}"
+)
+_SECURITY_HEADERS = {
+    "X-Content-Type-Options": "nosniff",
+    "X-Frame-Options": "DENY",
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Permissions-Policy": "camera=(self), microphone=(self), geolocation=()",
+    "Content-Security-Policy": _CSP,
+    "Cross-Origin-Opener-Policy": "same-origin",
+    "Cache-Control": "no-cache, no-store, must-revalidate",
+}
+
+
+@app.middleware("http")
+async def add_security_headers(request, call_next):
+    """为所有响应添加安全响应头。"""
+    response: Response = await call_next(request)
+    for key, value in _SECURITY_HEADERS.items():
+        response.headers[key] = value
+    return response
 
 # ── CORS ─────────────────────────────────────────────────
 app.add_middleware(
