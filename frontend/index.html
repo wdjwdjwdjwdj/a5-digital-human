@@ -4,22 +4,41 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>杭州西湖 · 水墨导览</title>
+
+<!-- Three.js VRM importmap -->
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+    "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.2.0/lib/three-vrm.module.min.js"
+  }
+}
+</script>
+<!-- 备用 CDN: 如果 jsdelivr 不可用，替换为 unpkg.com -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&family=Noto+Serif+SC:wght@400;600&display=swap" rel="stylesheet">
+
 <style>
 /* ═══════════════════════════════════════════════════════════
-   水墨画风主题 — 杭州西湖 · 智慧导览
-   墨绿 #2c3e2d / 宣纸 #f5f0e8 / 赭石 #8b4513 / 墨色 #3a3226
+   西湖山水主题 — 杭州西湖 · 智慧导览
+   翠绿 #2d6a4f / 宣纸 #fefae0 / 琥珀 #d4a373 / 墨色 #1b1b1b
+   （与 theme JSON 定义一致）
    ═══════════════════════════════════════════════════════════ */
-@import url('https://fonts.googleapis.com/css2?family=Ma+Shan+Zheng&family=ZCOOL+XiaoWei&family=Noto+Serif+SC:wght@400;600&display=swap');
 
 :root {
-  --primary: #2c3e2d;
-  --primary-light: #3d5a3e;
-  --primary-dark: #1a2a1b;
-  --bg: #f5f0e8;
-  --accent: #8b4513;
-  --accent-light: #c1783e;
-  --text: #3a3226;
-  --text-light: #8c8070;
+  --primary: #2d6a4f;
+  --primary-rgb: 45, 106, 79;
+  --primary-light: #40916c;
+  --primary-dark: #1b4332;
+  --bg: #fefae0;
+  --bg-rgb: 254, 250, 224;
+  --accent: #d4a373;
+  --accent-rgb: 212, 163, 115;
+  --accent-light: #e9c46a;
+  --text: #1b1b1b;
+  --text-light: #6b7280;
   --surface: rgba(255,252,245,0.95);
   --shadow: 0 4px 24px rgba(0,0,0,.06);
   --radius: 16px;
@@ -30,16 +49,16 @@ body {
   font-family: "Noto Serif SC", "PingFang SC", "STSong", "SimSun", serif;
   background: var(--bg);
   background-image:
-    radial-gradient(ellipse at 15% 30%, rgba(44,62,45,.06) 0%, transparent 50%),
-    radial-gradient(ellipse at 85% 60%, rgba(139,69,19,.05) 0%, transparent 40%),
-    radial-gradient(ellipse at 50% 85%, rgba(44,62,45,.04) 0%, transparent 45%),
-    linear-gradient(180deg, transparent 0%, rgba(139,69,19,.02) 100%);
+    radial-gradient(ellipse at 15% 30%, rgba(var(--primary-rgb),.06) 0%, transparent 50%),
+    radial-gradient(ellipse at 85% 60%, rgba(var(--accent-rgb),.05) 0%, transparent 40%),
+    radial-gradient(ellipse at 50% 85%, rgba(var(--primary-rgb),.04) 0%, transparent 45%),
+    linear-gradient(180deg, transparent 0%, rgba(var(--accent-rgb),.02) 100%);
   color: var(--text);
   height: 100vh; overflow: hidden;
 }
 body::before {
   content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
-  background: url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5 Q40 15 30 25 Q20 15 30 5' fill='none' stroke='%238c8070' stroke-width='.3' opacity='.15'/%3E%3C/svg%3E");
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M30 5 Q40 15 30 25 Q20 15 30 5' fill='none' stroke='%236b7280' stroke-width='.3' opacity='.15'/%3E%3C/svg%3E");
   pointer-events: none; z-index: 0;
 }
 
@@ -70,7 +89,7 @@ body::before {
   border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   font-size: 26px; color: #fff;
-  box-shadow: 0 4px 16px rgba(45,106,79,.25);
+  box-shadow: 0 4px 16px rgba(var(--primary-rgb),.25);
 }
 .sidebar-header h2 {
   font-size: 14px; font-weight: 600;
@@ -95,24 +114,24 @@ body::before {
   border: 1px solid transparent;
 }
 .scenic-item:hover {
-  background: rgba(45,106,79,.08);
-  border-color: rgba(45,106,79,.15);
+  background: rgba(var(--primary-rgb),.08);
+  border-color: rgba(var(--primary-rgb),.15);
   transform: translateX(4px);
 }
 .scenic-item:active {
   transform: translateX(2px);
-  background: rgba(45,106,79,.12);
+  background: rgba(var(--primary-rgb),.12);
 }
 .scenic-item .emoji { font-size: 20px; line-height: 1; }
 .scenic-item .info { min-width: 0; }
 .scenic-item .name { font-size: 13px; font-weight: 500; color: var(--text); }
 .scenic-item .desc { font-size: 11px; color: var(--text-light); margin-top: 1px; }
 
-/* Live2D 容器 — 磨砂玻璃效果 */
+/* VRM 3D 数字人容器 — 磨砂玻璃效果 */
 .live2d-section {
   flex: 1; margin: 6px 12px 8px;
   border-radius: 12px;
-  background: linear-gradient(180deg, rgba(45,106,79,.04) 0%, rgba(254,250,224,.4) 100%);
+  background: linear-gradient(180deg, rgba(var(--primary-rgb),.04) 0%, rgba(var(--bg-rgb),.4) 100%);
   position: relative;
   display: flex; align-items: center; justify-content: center;
   overflow: hidden;
@@ -130,7 +149,7 @@ body::before {
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
   display: flex; align-items: center; justify-content: center;
   font-size: 32px; color: #fff;
-  box-shadow: 0 6px 24px rgba(45,106,79,.25);
+  box-shadow: 0 6px 24px rgba(var(--primary-rgb),.25);
 }
 .avatar-fallback .label { font-size: 12px; opacity: .65; }
 .avatar-fallback.show { display: flex; }
@@ -162,7 +181,7 @@ body::before {
   padding: 14px 24px;
   background: linear-gradient(135deg, var(--primary-dark), var(--primary));
   display: flex; align-items: center; gap: 12px;
-  box-shadow: 0 2px 16px rgba(44,62,45,.2);
+  box-shadow: 0 2px 16px rgba(var(--primary-rgb),.2);
   position: relative; z-index: 1;
 }
 .chat-header .logo {
@@ -197,9 +216,9 @@ body::before {
 .msg.user {
   align-self: flex-end;
   background: linear-gradient(135deg, var(--primary), var(--primary-light));
-  color: #f5f0e8;
+  color: #fefae0;
   border-bottom-right-radius: 2px;
-  box-shadow: 0 2px 12px rgba(44,62,45,.15);
+  box-shadow: 0 2px 12px rgba(var(--primary-rgb),.15);
   border: 1px solid rgba(255,255,255,.1);
 }
 /* AI 气泡：宣纸质感 */
@@ -209,7 +228,7 @@ body::before {
   color: var(--text);
   border-bottom-left-radius: 2px;
   box-shadow: var(--shadow);
-  border: 1px solid rgba(139,69,19,.12);
+  border: 1px solid rgba(var(--accent-rgb),.12);
   border-left: 3px solid var(--accent);
 }
 .msg .time {
@@ -228,7 +247,7 @@ body::before {
 .quick-btn {
   display: flex; align-items: center; gap: 5px;
   padding: 8px 14px;
-  border: 1px solid rgba(44,62,45,.15);
+  border: 1px solid rgba(var(--primary-rgb),.15);
   border-radius: 6px;
   background: var(--surface);
   color: var(--primary);
@@ -244,7 +263,7 @@ body::before {
   color: #fff;
   border-color: var(--primary);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(44,62,45,.18);
+  box-shadow: 0 4px 12px rgba(var(--primary-rgb),.18);
 }
 .quick-btn:active {
   transform: translateY(0);
@@ -259,7 +278,7 @@ body::before {
 }
 .crowd-tag {
   padding: 5px 12px;
-  border: 1px solid rgba(139,69,19,.2);
+  border: 1px solid rgba(var(--accent-rgb),.2);
   border-radius: 16px;
   background: rgba(255,252,245,.7);
   color: var(--accent);
@@ -322,7 +341,7 @@ body::before {
 }
 .input-area input {
   flex: 1; padding: 10px 16px;
-  border: 2px solid #40916c;
+  border: 2px solid var(--primary-light);
   border-radius: 12px;
   font-size: 14px; outline: none;
   transition: border-color .2s, box-shadow .2s;
@@ -330,11 +349,11 @@ body::before {
 }
 .input-area input:focus {
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(45,106,79,.12);
+  box-shadow: 0 0 0 3px rgba(var(--primary-rgb),.12);
 }
 .input-area input::placeholder { color: var(--text-light); }
 
-/* 按钮 #2d6a4f, hover #1b4332 */
+/* 按钮配色（使用 CSS 变量） */
 .btn {
   width: 40px; height: 40px; border: none; border-radius: 50%;
   cursor: pointer; display: flex; align-items: center; justify-content: center;
@@ -344,7 +363,7 @@ body::before {
 .btn:hover { background: var(--primary-dark); transform: scale(1.05); }
 .btn:active { transform: scale(.95); }
 .btn.voice { background: var(--accent); }
-.btn.voice:hover { background: #c49463; }
+.btn.voice:hover { background: var(--accent-light); }
 .btn.voice.recording { background: #ef4444; animation: pulse-red .8s ease-in-out infinite; }
 @keyframes pulse-red { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.4)} 50%{box-shadow:0 0 0 12px rgba(239,68,68,0)} }
 .btn:disabled { opacity: .5; cursor: not-allowed; transform: none !important; }
@@ -375,7 +394,7 @@ body::before {
   .scenic-item { flex-shrink: 0; padding: 6px 10px; }
   .scenic-item .desc { display: none; }
 
-  /* Live2D 区域隐藏（移动端不显示数字人） */
+  /* VRM 区域隐藏（移动端不显示数字人） */
   .live2d-section { display: none; }
   .status-bar { display: none; }
 
@@ -459,7 +478,7 @@ body::before {
       </div>
     </div>
 
-    <!-- Live2D 数字人容器（磨砂玻璃） -->
+    <!-- VRM 3D 数字人容器（磨砂玻璃） -->
     <div class="live2d-section">
       <canvas id="live2d-canvas"></canvas>
       <div class="avatar-fallback show" id="avatar-fallback">
@@ -520,10 +539,145 @@ body::before {
     <!-- 底部 footer -->
     <footer class="footer">
       <span>第十五届"中国软件杯" A5 赛题 · 景区导览AI数字人</span>
-      <span>水墨画风 · DeepSeek · FunASR · Edge-TTS · Live2D</span>
+      <span>水墨画风 · DeepSeek · FunASR · Edge-TTS · 3D VRM</span>
     </footer>
   </main>
 </div>
+
+<!-- ═══════════════════════════════════════════════════════════
+   3D VRM 数字人渲染模块（Three.js + @pixiv/three-vrm）
+   ═══════════════════════════════════════════════════════════ -->
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+
+// --- 全局状态 ---
+let currentVrm = null;
+let clock = new THREE.Clock();
+let audioContext = null;
+let audioAnalyser = null;
+let isSpeaking = false;
+
+// --- 初始化 Three.js 场景 ---
+const canvas = document.getElementById('live2d-canvas');
+const scene = new THREE.Scene();
+const camera = new THREE.PerspectiveCamera(30, canvas.clientWidth / canvas.clientHeight, 0.1, 20);
+camera.position.set(0, 0.5, 1.5);
+
+const renderer = new THREE.WebGLRenderer({ canvas, alpha: true, antialias: true });
+renderer.setSize(canvas.clientWidth, canvas.clientHeight);
+renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+
+// --- 灯光 ---
+const light = new THREE.DirectionalLight(0xffffff, 0.8);
+light.position.set(1, 1, 1);
+scene.add(light);
+scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+
+// --- 加载 VRM 模型 ---
+const loader = new GLTFLoader();
+loader.register((plugin) => new VRMLoaderPlugin(plugin));
+const fallback = document.getElementById('avatar-fallback');
+
+loader.load(
+  '/static/vrm/AliciaSolid.vrm',
+  (gltf) => {
+    const vrm = gltf.userData.vrm;
+    currentVrm = vrm;
+    scene.add(vrm.scene);
+    // 启用自动眨眼
+    if (vrm.blendShapeProxy) vrm.blendShapeProxy.setAutoBlinkEnabled(true);
+    vrm.scene.rotation.y = Math.PI;
+    if (fallback) fallback.classList.remove('show');
+  },
+  null,
+  () => {
+    if (fallback) fallback.classList.add('show');
+  }
+);
+
+// --- 动画循环 ---
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+
+  // 音频口型同步
+  if (isSpeaking && audioAnalyser && currentVrm?.blendShapeProxy) {
+    const data = new Uint8Array(audioAnalyser.frequencyBinCount);
+    audioAnalyser.getByteTimeDomainData(data);
+    let sum = 0;
+    for (let i = 0; i < data.length; i++) {
+      const v = (data[i] - 128) / 128;
+      sum += v * v;
+    }
+    const rms = Math.sqrt(sum / data.length);
+    const weight = Math.min(rms * 2, 1.0) * 0.7;
+    // 'aa' BlendShape 控制张嘴幅度
+    currentVrm.blendShapeProxy.setValue('aa', weight);
+  }
+
+  if (currentVrm) currentVrm.update(delta);
+  renderer.render(scene, camera);
+}
+animate();
+
+// --- 窗口自适应 ---
+window.addEventListener('resize', () => {
+  const w = canvas.clientWidth;
+  const h = canvas.clientHeight;
+  renderer.setSize(w, h);
+  camera.aspect = w / h;
+  camera.updateProjectionMatrix();
+});
+
+// --- 表情切换接口 ---
+window.setVRMExpression = function(emotionName) {
+  if (!currentVrm?.blendShapeProxy) return;
+  currentVrm.blendShapeProxy.setValue(emotionName, 1.0);
+  // 4 秒后恢复 neutral
+  setTimeout(() => {
+    currentVrm?.blendShapeProxy?.setValue('neutral', 1.0);
+  }, 4000);
+};
+
+// --- 音频播放 + 口型同步 ---
+window.playVRMAudio = async function(audioUrl) {
+  try {
+    if (!audioContext) {
+      audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    }
+    await audioContext.resume();
+
+    const resp = await fetch(audioUrl);
+    const arrayBuffer = await resp.arrayBuffer();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+
+    audioAnalyser = audioContext.createAnalyser();
+    audioAnalyser.fftSize = 256;
+    source.connect(audioAnalyser);
+    audioAnalyser.connect(audioContext.destination);
+
+    isSpeaking = true;
+    source.start();
+
+    return new Promise((resolve) => {
+      source.onended = () => {
+        isSpeaking = false;
+        audioAnalyser = null;
+        resolve();
+      };
+    });
+  } catch (err) {
+    isSpeaking = false;
+    throw err;
+  }
+};
+
+</script>
 
 <script>
 // ═══════════════════════════════════════════════════════════
@@ -578,26 +732,92 @@ body::before {
     } catch(e) { return false; }
   }
 
+  // ── VRM BlendShape 情绪映射 ──
+  const VRM_EMOTION_MAP = {
+    'happy': 'happy',
+    'sad': 'sad',
+    'angry': 'angry',
+    'surprise': 'surprised',
+    'neutral': 'neutral',
+  };
+  let emotionTimeout = null;
+
+  // ── 解析 bot 回答中的情绪标签 ──
+  function parseBotResponse(text) {
+    const match = text.match(/\[情绪:\s*(\w+)\]/);
+    if (match) {
+      const emotion = match[1].toLowerCase();
+      const reply = text.replace(/\[情绪:\s*\w+\]/, '').trim();
+      return { reply, emotion };
+    }
+    return { reply: text, emotion: null };
+  }
+
+  // ── 驱动 VRM 表情切换（口型结束后调用） ──
+  function scheduleEmotion(emotion) {
+    const expressionName = VRM_EMOTION_MAP[emotion];
+    if (!expressionName) return;
+    // 300ms 延迟确保口型同步动画不被打断
+    setTimeout(() => {
+      if (typeof window.setVRMExpression === 'function') {
+        window.setVRMExpression(expressionName);
+      }
+      // 4 秒后恢复 neutral
+      if (emotionTimeout) clearTimeout(emotionTimeout);
+      emotionTimeout = setTimeout(() => {
+        if (typeof window.setVRMExpression === 'function') {
+          window.setVRMExpression('neutral');
+        }
+      }, 4000);
+    }, 300);
+  }
+
   // ── 添加消息 ──
   function addMessage(text, role, audioUrl) {
+    // 解析 bot 消息中的情绪标签
+    let parsedEmotion = null;
+    let displayText = text;
+    if (role === 'bot') {
+      const parsed = parseBotResponse(text);
+      displayText = parsed.reply;
+      parsedEmotion = parsed.emotion;
+    }
+
     const div = document.createElement('div');
     div.className = `msg ${role}`;
     const time = new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' });
     const timeSpan = document.createElement('div');
     timeSpan.className = 'time';
     timeSpan.textContent = time;
-    div.textContent = text;
+    div.textContent = displayText;
     div.appendChild(timeSpan);
     messagesEl.appendChild(div);
     messagesEl.scrollTop = messagesEl.scrollHeight;
     saveHistory();
 
+    // 音频播放 → 口型同步 → 表情切换
     if (role === 'bot' && audioUrl) {
-      const audio = new Audio(audioUrl);
-      audio.play().catch(e => console.warn('自动播放被阻止:', e));
       setSpeaking(true);
-      audio.onended = () => setSpeaking(false);
-      audio.onerror = () => setSpeaking(false);
+      playVRMAudio(audioUrl)
+        .then(() => {
+          setSpeaking(false);
+          if (parsedEmotion) scheduleEmotion(parsedEmotion);
+        })
+        .catch(() => {
+          const audio = new Audio(audioUrl);
+          audio.play().catch(() => {});
+          audio.onended = () => {
+            setSpeaking(false);
+            if (parsedEmotion) scheduleEmotion(parsedEmotion);
+          };
+          audio.onerror = () => {
+            setSpeaking(false);
+            if (parsedEmotion) scheduleEmotion(parsedEmotion);
+          };
+        });
+    } else if (role === 'bot' && parsedEmotion) {
+      // 无音频：延迟 300ms 切换表情
+      setTimeout(() => scheduleEmotion(parsedEmotion), 300);
     }
   }
 
@@ -647,6 +867,7 @@ body::before {
       });
       const data = await resp.json();
       showTyping(false);
+      // data.reply 保留原始情绪标签用于展示，addMessage 内已通过 parseBotResponse 自动调度表情
       addMessage(data.reply, 'bot', data.audio_url || null);
     } catch (err) {
       showTyping(false);
@@ -677,6 +898,83 @@ body::before {
     } catch (err) {
       showTyping(false);
       addMessage('语音处理失败，请重试或使用文字输入。', 'bot');
+    }
+  }
+
+  // ── 流式 TTS 播放（SSE + Web Audio API） ──
+  let audioCtx = null;
+  let audioScheduledTime = 0;
+
+  async function playVoiceStream(text, onDone) {
+    if (!text) { if (onDone) onDone(); return; }
+
+    try {
+      const resp = await fetch('/chat/stream-tts?text=' + encodeURIComponent(text));
+      if (!resp.ok) throw new Error('HTTP ' + resp.status);
+      const reader = resp.body.getReader();
+      const decoder = new TextDecoder();
+
+      // 初始化 AudioContext（需在用户交互后创建）
+      if (!audioCtx) {
+        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+      }
+      await audioCtx.resume();
+      audioScheduledTime = Math.max(audioScheduledTime, audioCtx.currentTime);
+      setSpeaking(true);
+
+      let buf = '';
+      let hasAudio = false;
+
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+
+        buf += decoder.decode(value, { stream: true });
+        const lines = buf.split('\n');
+        buf = lines.pop() || '';
+
+        for (const line of lines) {
+          if (!line.startsWith('data: ')) continue;
+          try {
+            const msg = JSON.parse(line.slice(6));
+            if (msg.type === 'audio') {
+              hasAudio = true;
+              // base64 → ArrayBuffer
+              const binary = atob(msg.data);
+              const bytes = new Uint8Array(binary.length);
+              for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+
+              // 解码并调度播放
+              try {
+                const audioBuf = await audioCtx.decodeAudioData(bytes.buffer);
+                const source = audioCtx.createBufferSource();
+                source.buffer = audioBuf;
+                source.connect(audioCtx.destination);
+                source.start(audioScheduledTime);
+                audioScheduledTime += audioBuf.duration;
+              } catch (e) {
+                logger.debug('[Stream] 解码失败: %s', e);
+              }
+            } else if (msg.type === 'done') {
+              // 全部接收完毕
+            }
+          } catch (e) {
+            logger.debug('[Stream] 解析错误: %s', e);
+          }
+        }
+      }
+
+      // 等待所有音频播放完毕
+      if (hasAudio) {
+        const waitSec = Math.max(0, audioScheduledTime - audioCtx.currentTime);
+        await new Promise(r => setTimeout(r, (waitSec + 0.3) * 1000));
+      }
+      setSpeaking(false);
+      if (onDone) onDone();
+    } catch (err) {
+      setSpeaking(false);
+      if (onDone) onDone();
+      if (onDone) onDone();
     }
   }
 
@@ -759,7 +1057,6 @@ body::before {
     };
 
     recognition.onerror = event => {
-      console.warn('语音识别错误:', event.error);
       setListening(false);
       voiceBtn.className = 'btn voice';
       if (event.error === 'no-speech') {
@@ -787,7 +1084,7 @@ body::before {
       setListening(true);
 
       try { recognition.start(); }
-      catch (e) { console.warn('Web Speech 启动失败:', e); }
+      catch (e) { /* 语音启动失败，用户无反馈 */ }
 
       if (navigator.mediaDevices) {
         navigator.mediaDevices.getUserMedia({ audio: true })
@@ -809,7 +1106,7 @@ body::before {
               }
             }, 8000);
           })
-          .catch(err => console.warn('麦克风权限被拒绝:', err));
+          .catch(err => { /* 麦克风权限被拒绝 */ });
       }
     });
   } else {
@@ -850,29 +1147,13 @@ body::before {
     });
   }
 
-  // ── Live2D 集成 (Cubism SDK) ──
-  async function initLive2D() {
-    const modelPath = '/static/live2d/default/';
-    try {
-      const resp = await fetch(modelPath + 'model.model3.json', { method: 'HEAD' });
-      if (!resp.ok) { return; }
-    } catch {
-      return;
-    }
-    fallback.classList.remove('show');
-    try { await loadCubismSDK(); }
-    catch (err) {
-      console.warn('Live2D SDK 加载失败:', err);
-      fallback.classList.add('show');
-    }
-  }
+  // ═════════════════════════════════════════════════════════
+  //  3D VRM 初始化（由上方 <script type="module"> 自动执行）
+  //  只需确保 canvas 和 fallback 引用正确
+  // ═════════════════════════════════════════════════════════
 
-  async function loadCubismSDK() {
-    // Cubism 4 WebGL SDK 集成钩子（待实现）
-  }
-
-  // ── 初始化 ──
-  initLive2D();
+  // 3D 场景由 type="module" 脚本自动初始化，fallback 默认可见
+  // VRM 加载成功时自动隐藏，加载失败则保留显示
 
   // 尝试恢复历史对话
   const hasHistory = loadHistory();

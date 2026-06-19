@@ -2,6 +2,7 @@
 
 import logging
 import sqlite3
+import threading
 from pathlib import Path
 
 from backend.config import settings
@@ -19,30 +20,37 @@ class ChatRepository:
             self._db_path = Path(db_path)
         else:
             self._db_path = _DB_PATH
+        self._lock = threading.Lock()
+        self._db_path.parent.mkdir(parents=True, exist_ok=True)
+        self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
+        self._conn.row_factory = sqlite3.Row
+        self._conn.execute("PRAGMA journal_mode=WAL")
         self._ensure_tables()
 
     def _ensure_tables(self) -> None:
         """确保表结构存在。"""
-        self._db_path.parent.mkdir(parents=True, exist_ok=True)
         try:
-            conn = sqlite3.connect(str(self._db_path))
-            conn.execute(
-                """
-                CREATE TABLE IF NOT EXISTS conversations (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    query TEXT NOT NULL,
-                    reply TEXT NOT NULL,
-                    provider TEXT DEFAULT 'deepseek',
-                    satisfaction INTEGER DEFAULT NULL,
-                    session_id TEXT DEFAULT 'default',
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            with self._lock:
+                self._conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS conversations (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        query TEXT NOT NULL,
+                        reply TEXT NOT NULL,
+                        provider TEXT DEFAULT 'deepseek',
+                        satisfaction INTEGER DEFAULT NULL,
+                        session_id TEXT DEFAULT 'default',
+                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                    )
+                    """
                 )
-                """
-            )
-            conn.commit()
-            conn.close()
+                self._conn.commit()
         except sqlite3.Error as e:
             logger.error("创建 conversations 表失败: %s", e)
+
+    def ensure_tables(self) -> None:
+        """公共方法：确保表结构存在。"""
+        self._ensure_tables()
 
     def save_conversation(
         self,
@@ -63,14 +71,13 @@ class ChatRepository:
             记录 ID 或 None
         """
         try:
-            conn = sqlite3.connect(str(self._db_path))
-            cursor = conn.execute(
-                "INSERT INTO conversations (query, reply, provider, session_id) VALUES (?, ?, ?, ?)",
-                (query, reply, provider, session_id),
-            )
-            conn.commit()
-            record_id = cursor.lastrowid
-            conn.close()
+            with self._lock:
+                cursor = self._conn.execute(
+                    "INSERT INTO conversations (query, reply, provider, session_id) VALUES (?, ?, ?, ?)",
+                    (query, reply, provider, session_id),
+                )
+                self._conn.commit()
+                record_id = cursor.lastrowid
             logger.info("[ChatRepo] 对话已保存: id=%s", record_id)
             return record_id
         except sqlite3.Error as e:
@@ -88,15 +95,12 @@ class ChatRepository:
             对话记录列表
         """
         try:
-            conn = sqlite3.connect(str(self._db_path))
-            conn.row_factory = sqlite3.Row
-            cursor = conn.execute(
+            cursor = self._conn.execute(
                 "SELECT query, reply, provider, created_at FROM conversations "
                 "WHERE session_id = ? ORDER BY created_at DESC LIMIT ?",
                 (session_id, limit),
             )
             rows = [dict(row) for row in cursor.fetchall()]
-            conn.close()
             return rows
         except sqlite3.Error as e:
             logger.error("[ChatRepo] 查询历史失败: %s", e)

@@ -15,9 +15,10 @@ class TestTTSASR:
         # 无网络时返回 None
         assert result is None or isinstance(result, bytes)
 
-    def test_asr_transcribe_missing_file(self) -> None:
+    @pytest.mark.asyncio
+    async def test_asr_transcribe_missing_file(self) -> None:
         """测试 ASR 转写不存在的文件。"""
         from backend.services.asr_service import asr_manager
 
-        result = asr_manager.transcribe("nonexistent.wav")
+        result = await asr_manager.transcribe("nonexistent.wav")
         assert result is None

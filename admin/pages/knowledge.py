@@ -74,7 +74,7 @@ def render_page() -> None:
                     "文件名": doc.get("name", doc.get("filename", "未知")),
                     "大小": _format_size(doc.get("size", 0)),
                     "状态": doc.get("status", "未知"),
-                    "创建时间": doc.get("created_at", doc.get("created_at", "")),
+                    "创建时间": doc.get("created_at", ""),
                 }
             )
         st.dataframe(doc_data, use_container_width=True, hide_index=True)

@@ -1,4 +1,4 @@
-"""系统设置页面：Live2D 模型、TTS 音色、系统状态。"""
+"""系统设置页面：VRM 3D 模型、TTS 音色、系统状态。"""
 
 import logging
 from pathlib import Path
@@ -11,7 +11,8 @@ from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
-_LIVE2D_DIR = Path("frontend/static/live2d")
+_VRM_DIR = Path("frontend/static/vrm")
+_API_BASE = settings.api_base_url
 
 _TTS_VOICES = {
     "zh-CN-XiaoxiaoNeural": "晓晓（女声，温柔）",
@@ -25,11 +26,11 @@ def render_page() -> None:
     st.title("⚙️ 系统设置")
     st.markdown("管理数字人模型、语音配置与查看系统状态。")
 
-    # ── Live2D 模型选择 ───────────────────────────────────
-    st.subheader("🎭 Live2D 模型")
-    models = _list_live2d_models()
+    # ── VRM 3D 模型选择 ───────────────────────────────────
+    st.subheader("🎭 VRM 3D 模型")
+    models = _list_vrm_models()
     if models:
-        current_model = settings.live2d_model_path
+        current_model = settings.vrm_model_url
         default_index = 0
         model_labels = []
         for i, m in enumerate(models):
@@ -40,18 +41,22 @@ def render_page() -> None:
             model_labels.append(label)
 
         selected_idx = st.selectbox(
-            "选择 Live2D 模型",
+            "选择 VRM 3D 模型",
             options=list(range(len(models))),
             format_func=lambda i: model_labels[i],
             index=default_index,
         )
         if st.button("应用模型", type="primary"):
             selected_model = models[selected_idx]
-            st.info(f"已选择: {selected_model['name']}")
-            st.caption(f"模型路径: {selected_model['path']}")
-            st.success("✅ 模型选择已保存（需重启数字人服务生效）")
+            with st.spinner("正在发送模型切换请求..."):
+                success = _switch_vrm_model(selected_model["path"])
+                if success:
+                    st.success(f"✅ 已发送模型切换指令：{selected_model['name']}")
+                    st.caption("前端将在 3 秒内热加载新模型")
+                else:
+                    st.error("❌ 模型切换失败，请检查数字人服务是否运行")
     else:
-        st.warning("⚠️ 未检测到 Live2D 模型文件，请将模型放置在 `frontend/static/live2d/` 目录下。")
+        st.warning("⚠️ 未检测到 VRM 模型文件，请将模型放置在 `frontend/static/vrm/` 目录下。")
 
     st.divider()
 
@@ -94,19 +99,19 @@ def render_page() -> None:
             st.warning(f"⚠️ **{w}**: {status[w].get('message', '异常')}")
 
 
-def _list_live2d_models() -> list[dict[str, str]]:
-    """扫描 Live2D 模型目录。
+def _list_vrm_models() -> list[dict[str, str]]:
+    """扫描 VRM 模型目录。
 
     Returns:
         模型列表，每项包含 name 和 path
     """
-    if not _LIVE2D_DIR.exists():
+    if not _VRM_DIR.exists():
         return []
 
     models = []
-    for item in sorted(_LIVE2D_DIR.iterdir()):
-        if item.is_dir() and not item.name.startswith("."):
-            models.append({"name": item.name, "path": str(item)})
+    for item in sorted(_VRM_DIR.iterdir()):
+        if item.is_file() and item.suffix.lower() == ".vrm":
+            models.append({"name": item.stem, "path": str(item.relative_to(_VRM_DIR))})
     return models
 
 
@@ -142,21 +147,43 @@ def _check_system_status() -> dict[str, dict[str, Any]]:
     except ImportError:
         status["Edge-TTS"] = {"status": "⚠️ 未安装", "message": "请安装 edge-tts 包"}
 
-    # Live2D
-    live2d_models = _list_live2d_models()
-    if live2d_models:
-        status["Live2D"] = {"status": "✅ 正常", "message": f"发现 {len(live2d_models)} 个模型"}
+    # VRM 3D
+    vrm_models = _list_vrm_models()
+    if vrm_models:
+        status["VRM 3D"] = {"status": "✅ 正常", "message": f"发现 {len(vrm_models)} 个模型"}
     else:
-        status["Live2D"] = {"status": "⚠️ 无模型", "message": "frontend/static/live2d/ 目录为空"}
+        status["VRM 3D"] = {"status": "⚠️ 无模型", "message": "frontend/static/vrm/ 目录为空"}
 
     # FastAPI 服务
-    fastapi_ok = _check_http_connectivity("http://localhost:8000/health")
+    fastapi_ok = _check_http_connectivity(f"{_API_BASE}/health")
     if fastapi_ok:
         status["FastAPI 服务"] = {"status": "✅ 正常", "message": "http://localhost:8000"}
     else:
         status["FastAPI 服务"] = {"status": "⚠️ 未启动", "message": "请运行 python main.py 启动"}
 
     return status
+
+
+def _switch_vrm_model(model_path: str) -> bool:
+    """调用后端 API 切换 VRM 3D 模型。
+
+    Args:
+        model_path: VRM 模型文件名（如 AliciaSolid.vrm）
+
+    Returns:
+        切换成功返回 True
+    """
+    try:
+        resp = httpx.post(
+            f"{_API_BASE}/api/vrm/model",
+            json={"path": model_path},
+            timeout=10.0,
+        )
+        result = resp.json()
+        return result.get("success", False)
+    except Exception as e:
+        logger.error("[VRM] 模型切换请求失败: %s", e)
+        return False
 
 
 def _check_http_connectivity(url: str, timeout: float = 5.0) -> bool:

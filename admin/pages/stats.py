@@ -8,6 +8,8 @@ from typing import Any
 
 import streamlit as st
 
+from backend.repository.chat_repo import chat_repo
+
 logger = logging.getLogger(__name__)
 
 _DB_PATH = Path("data/conversations.db")
@@ -111,119 +113,100 @@ def _load_stats() -> dict[str, Any]:
     Returns:
         包含各项统计数据的字典
     """
-    conn = sqlite3.connect(str(_DB_PATH))
-    conn.row_factory = sqlite3.Row
-    cursor = conn.cursor()
-
-    today = datetime.now().strftime("%Y-%m-%d")
-    yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
-    seven_days_ago = (datetime.now() - timedelta(days=6)).strftime("%Y-%m-%d")
-
     stats: dict[str, Any] = {}
 
-    # 累计对话次数
-    cursor.execute("SELECT COUNT(*) as cnt FROM conversations")
-    row = cursor.fetchone()
-    stats["total_conversations"] = row["cnt"] if row else 0
+    with sqlite3.connect(str(_DB_PATH)) as conn:
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
 
-    # 今日对话次数
-    cursor.execute(
-        "SELECT COUNT(*) as cnt FROM conversations WHERE date(created_at) = ?",
-        (today,),
-    )
-    row = cursor.fetchone()
-    stats["today_conversations"] = row["cnt"] if row else 0
+        today = datetime.now().strftime("%Y-%m-%d")
+        yesterday = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
+        seven_days_ago = (datetime.now() - timedelta(days=6)).strftime("%Y-%m-%d")
 
-    # 昨日对话次数（用于计算 delta）
-    cursor.execute(
-        "SELECT COUNT(*) as cnt FROM conversations WHERE date(created_at) = ?",
-        (yesterday,),
-    )
-    row = cursor.fetchone()
-    yesterday_count = row["cnt"] if row else 0
-    stats["today_delta"] = stats["today_conversations"] - yesterday_count
+        # 累计对话次数
+        cursor.execute("SELECT COUNT(*) as cnt FROM conversations")
+        row = cursor.fetchone()
+        stats["total_conversations"] = row["cnt"] if row else 0
 
-    # 今日满意度（平均值）
-    cursor.execute(
-        """
-        SELECT AVG(satisfaction) as avg_sat
-        FROM conversations
-        WHERE date(created_at) = ? AND satisfaction IS NOT NULL
-        """,
-        (today,),
-    )
-    row = cursor.fetchone()
-    stats["avg_satisfaction"] = round(row["avg_sat"], 1) if row and row["avg_sat"] else 0.0
+        # 今日对话次数
+        cursor.execute(
+            "SELECT COUNT(*) as cnt FROM conversations WHERE date(created_at) = ?",
+            (today,),
+        )
+        row = cursor.fetchone()
+        stats["today_conversations"] = row["cnt"] if row else 0
 
-    # 热门问题 Top 10
-    cursor.execute(
-        """
-        SELECT query, COUNT(*) as count
-        FROM conversations
-        GROUP BY query
-        ORDER BY count DESC
-        LIMIT 10
-        """
-    )
-    stats["top_questions"] = [dict(row) for row in cursor.fetchall()]
+        # 昨日对话次数（用于计算 delta）
+        cursor.execute(
+            "SELECT COUNT(*) as cnt FROM conversations WHERE date(created_at) = ?",
+            (yesterday,),
+        )
+        row = cursor.fetchone()
+        yesterday_count = row["cnt"] if row else 0
+        stats["today_delta"] = stats["today_conversations"] - yesterday_count
 
-    # 近 7 日对话趋势
-    cursor.execute(
-        """
-        SELECT date(created_at) as date, COUNT(*) as count
-        FROM conversations
-        WHERE date(created_at) >= ?
-        GROUP BY date(created_at)
-        ORDER BY date ASC
-        """,
-        (seven_days_ago,),
-    )
-    daily = [dict(row) for row in cursor.fetchall()]
+        # 今日满意度（平均值）
+        cursor.execute(
+            """
+            SELECT AVG(satisfaction) as avg_sat
+            FROM conversations
+            WHERE date(created_at) = ? AND satisfaction IS NOT NULL
+            """,
+            (today,),
+        )
+        row = cursor.fetchone()
+        stats["avg_satisfaction"] = round(row["avg_sat"], 1) if row and row["avg_sat"] else 0.0
 
-    # 填充缺失日期（补 0）
-    date_counts = {d["date"]: d["count"] for d in daily}
-    full_daily = []
-    for i in range(7):
-        day = (datetime.now() - timedelta(days=6 - i)).strftime("%Y-%m-%d")
-        full_daily.append({"date": day, "count": date_counts.get(day, 0)})
-    stats["daily_counts"] = full_daily
+        # 热门问题 Top 10
+        cursor.execute(
+            """
+            SELECT query, COUNT(*) as count
+            FROM conversations
+            GROUP BY query
+            ORDER BY count DESC
+            LIMIT 10
+            """
+        )
+        stats["top_questions"] = [dict(row) for row in cursor.fetchall()]
 
-    # 最近 10 条对话记录
-    cursor.execute(
-        """
-        SELECT query, reply, provider, created_at
-        FROM conversations
-        ORDER BY created_at DESC
-        LIMIT 10
-        """
-    )
-    stats["recent_conversations"] = [dict(row) for row in cursor.fetchall()]
+        # 近 7 日对话趋势
+        cursor.execute(
+            """
+            SELECT date(created_at) as date, COUNT(*) as count
+            FROM conversations
+            WHERE date(created_at) >= ?
+            GROUP BY date(created_at)
+            ORDER BY date ASC
+            """,
+            (seven_days_ago,),
+        )
+        daily = [dict(row) for row in cursor.fetchall()]
 
-    conn.close()
+        # 填充缺失日期（补 0）
+        date_counts = {d["date"]: d["count"] for d in daily}
+        full_daily = []
+        for i in range(7):
+            day = (datetime.now() - timedelta(days=6 - i)).strftime("%Y-%m-%d")
+            full_daily.append({"date": day, "count": date_counts.get(day, 0)})
+        stats["daily_counts"] = full_daily
+
+        # 最近 10 条对话记录
+        cursor.execute(
+            """
+            SELECT query, reply, provider, created_at
+            FROM conversations
+            ORDER BY created_at DESC
+            LIMIT 10
+            """
+        )
+        stats["recent_conversations"] = [dict(row) for row in cursor.fetchall()]
+
     return stats
 
 
 def _ensure_tables() -> None:
-    """确保 conversations 表存在。"""
-    try:
-        conn = sqlite3.connect(str(_DB_PATH))
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS conversations (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                query TEXT NOT NULL,
-                reply TEXT NOT NULL,
-                provider TEXT DEFAULT 'deepseek',
-                satisfaction INTEGER DEFAULT NULL,
-                session_id TEXT DEFAULT 'default',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            )
-            """
-        )
-        conn.commit()
-        conn.close()
-    except sqlite3.Error as e:
-        logger.error("创建 conversations 表失败: %s", e)
+    """确保 conversations 表存在（委托给 chat_repo）。"""
+    chat_repo.ensure_tables()
 
 
 def _render_empty_state() -> None:

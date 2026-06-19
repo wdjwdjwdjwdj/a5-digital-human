@@ -96,7 +96,7 @@
 ## 对话链路
 
 ```
-用户输入 → ASR（FunASR / Web Speech） → Dify RAG 检索 → DeepSeek LLM → Edge-TTS → Live2D 口型同步
+用户输入 → ASR（FunASR / Web Speech） → Dify RAG 检索 → DeepSeek LLM → Edge-TTS → VRM 3D 口型同步
                                          ↓ 降级                ↓ 降级           ↓ 降级
                                     直连 DeepSeek         通义千问 API     pyttsx3 离线
 ```

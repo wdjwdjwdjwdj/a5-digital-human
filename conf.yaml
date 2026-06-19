@@ -1,35 +1,117 @@
 # ============================================
-# A5-景区导览AI数字人 核心配置文件
-# ${VAR} 由 envsubst 从 .env 自动读取
+# ⚠️ 本文件为配置参考文档（Configuration Reference）
+# 所有运行时配置从 .env 通过 pydantic-settings 加载
+# ${VAR} 占位符仅作文档标记，不做运行时变量插值
+# 实际生效配置请见 .env 文件
+# 配置加载优先级：.env > pydantic-settings 默认值 > 本文件（仅供参考）
 # ============================================
 
-llm:
-  provider: deepseek
-  api_key: ${DEEPSEEK_API_KEY}
-  base_url: https://api.deepseek.com/v1
-  model: deepseek-chat
-  temperature: 0.7
-  max_tokens: 512
-
-tts:
-  provider: edge-tts
-  voice: zh-CN-XiaoxiaoNeural
-  rate: +0%
-  volume: +0%
-  pitch: +0Hz
-
-asr:
-  provider: funasr
-  model: paraformer-zh
-  device: cpu
-  vad: true
-
-live2d:
-  model_path: frontend/static/live2d/default
-  motion_sync: volume
-  sensitivity: 0.8
-
+# ── 服务端 ────────────────────────────────────
 server:
-  host: 0.0.0.0
-  port: 8000
-  cors_origins: ["*"]
+  host: 0.0.0.0                    # FastAPI 监听地址（默认 0.0.0.0）
+  port: 8000                       # 服务端口
+  cors_origins: ["*"]              # CORS 来源，生产环境限制具体域名
+  env: development                  # 运行环境（development / production）
+  log_level: INFO                  # 日志级别（DEBUG / INFO / WARNING / ERROR）
+
+# ── LLM 对话模型 ─────────────────────────────
+# 主方案：DeepSeek API（OpenAI 兼容接口）
+# 降级方案：通义千问 API（连续 3 次 5xx 时自动切换）
+# 链式调用：Dify RAG → DeepSeek → 通义千问（三级降级）
+llm:
+  provider: deepseek               # 主 LLM 提供商
+  api_key: ${DEEPSEEK_API_KEY}     # DeepSeek API Key（从 .env 读取）
+  base_url: https://api.deepseek.com/v1
+  model: deepseek-chat             # 模型名
+  temperature: 0.7                 # 生成温度
+  max_tokens: 512                  # 单次回答最大 Token 数
+
+  # ── 降级 LLM（DeepSeek 连续故障时自动切换）─
+  fallback:
+    provider: qwen                 # 降级提供商
+    api_key: ${FALLBACK_LLM_API_KEY}
+    base_url: https://dashscope.aliyuncs.com/compatible-mode/v1
+    model: qwen-turbo
+    temperature: 0.7
+    max_tokens: 512
+    threshold: 3                   # 连续失败 N 次后触发切换
+
+# ── 语音合成 TTS ─────────────────────────────
+# 三级降级链路：Edge-TTS（云端高音质）→ Kokoro（开源神经网，需 PyTorch）→ pyttsx3（离线低音质兜底）
+tts:
+  provider: edge-tts               # 主 TTS 引擎
+  voice: zh-CN-XiaoxiaoNeural      # 音色（Edge-TTS 支持列表见官方文档）
+  rate: +0%                        # 语速调整（Edge-TTS 参数）
+  volume: +0%                      # 音量调整
+  pitch: +0Hz                      # 音调调整
+
+  # ── 降级引擎 ──
+  fallback:
+    - engine: kokoro               # 引擎 2：Kokoro（可选，需 pip install kokoro + torch）
+      voice: af_heart              # 音色标识
+      lang_code: z                 # 语言代码（z=中文）
+    - engine: pyttsx3              # 引擎 3：pyttsx3（离线兜底，Windows SAPI5）
+
+# ── 语音识别 ASR ─────────────────────────────
+# 主方案：FunASR paraformer-zh（服务端离线识别，CPU 推理）
+# 降级方案：Web Speech API（浏览器内置，前端实现）
+# 辅助：Silero VAD（静音检测与尾部修剪，提升 ASR 精度与速度）
+asr:
+  provider: funasr                 # ASR 引擎
+  model: paraformer-zh             # 模型名
+  device: cpu                      # 推理设备（纯 CPU，零 GPU 依赖）
+  vad: true                        # 启用 Silero VAD 静音检测
+
+  # ── Silero VAD 参数 ──
+  vad_config:
+    threshold: 0.3                 # 语音检测阈值
+    min_silence_duration_ms: 800   # 静音判定最小时长（毫秒）
+
+  # ── 降级 ──
+  fallback:
+    engine: web_speech_api         # 浏览器 Web Speech API（前端实现，服务端不可用时自动降级）
+
+# ── RAG 知识库 ────────────────────────────────
+# 主方案：Dify 社区版（Docker 部署）
+# 降级方案：直连 LLM（硬编码景区 context 兜底，无检索）
+rag:
+  provider: dify                   # RAG 引擎
+  api_url: http://localhost/v1     # Dify API 地址
+  api_key: ${DIFY_API_KEY}        # Dify API Key
+  knowledge_base_id: ${DIFY_KNOWLEDGE_BASE_ID}
+
+  # ── 降级 ──
+  fallback:
+    mode: direct_llm               # Dify 不可用时直连 LLM（硬编码景区介绍作为系统 prompt）
+
+# ── 3D VRM 数字人 ────────────────────────────
+# 渲染引擎：Three.js + @pixiv/three-vrm（WebGL，浏览器端渲染）
+# 口型同步：VRM BlendShape（通过 TTS 音频时长驱动 viseme 动画）
+# 降级方案：静态 PNG 头像 + CSS 口型动画（Three.js 加载失败时）
+vrm:
+  model_path: frontend/static/vrm/AliciaSolid.vrm   # 默认 VRM 模型路径
+  motion_sync: blendshape         # 口型同步方式（blendshape / css_fallback）
+  viseme_weight: 0.7              # 口型动画强度系数（0-1）
+
+  # ── 降级 ──
+  fallback:
+    type: static_avatar           # 静态头像 + CSS 口型动画
+
+# ── 对话记录 ──────────────────────────────────
+# 数据库：SQLite（WAL 模式，Python 内置，无需额外部署）
+database:
+  url: sqlite:///./data/conversations.db   # 数据库路径
+  wal_mode: true                            # WAL 模式（高并发读写优化）
+
+# ── Token 节省策略参数 ───────────────────────
+# 见 chatbot.py 中 _COMPRESS_AFTER_ROUNDS / _CACHE_MAX_SIZE 等常量
+# 此处仅作文档参考，实际值以代码为准
+token_saving:
+  history_compress_after_rounds: 6  # 6 轮后自动压缩旧历史为摘要
+  summary_max_tokens: 300           # 摘要最大 Token 数
+  raw_keep_rounds: 4                # 压缩后保留最近 N 轮原始消息
+  cache_max_size: 20                # LRU 高频问答缓存大小
+  short_query_length: 10            # ≤N 字视为短查询
+  short_max_tokens: 256             # 短查询回答上限
+  long_max_tokens: 1024             # 长查询回答上限
+  session_token_budget: 8192        # 单会话 Token 预算上限（超限自动清空历史）

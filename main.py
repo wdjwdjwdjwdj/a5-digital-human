@@ -1,5 +1,6 @@
 """景区导览 AI 数字人主入口。"""
 
+import asyncio
 import logging
 import sys
 from contextlib import asynccontextmanager
@@ -13,6 +14,7 @@ from fastapi.staticfiles import StaticFiles
 from backend.config import settings
 from backend.routes.chat import router as chat_router
 from backend.routes.health import router as health_router
+from backend.routes.vrm import router as vrm_router
 
 # ── 日志配置 ──────────────────────────────────────────────
 logging.basicConfig(
@@ -36,6 +38,16 @@ async def lifespan(app: FastAPI):
         logger.warning("DEEPSEEK_API_KEY 未配置，LLM 功能不可用")
     else:
         logger.info("DeepSeek API Key 已配置")
+
+    # FunASR 模型预热（后台异步加载，不阻塞启动流程）
+    try:
+        from backend.services.asr_service import asr_manager
+
+        await asyncio.to_thread(asr_manager._load_model)
+        logger.info("[预热] FunASR 模型加载完成")
+    except Exception:
+        logger.warning("[预热] FunASR 模型加载失败，将在首次使用时按需加载")
+
     logger.info("服务启动完成，环境: %s", settings.env)
     yield
     # shutdown (如有需要在此添加清理逻辑)
@@ -52,7 +64,7 @@ app = FastAPI(
 # ── CORS ─────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # 开发阶段开放；生产环境限制具体域名
+    allow_origins=["*"] if settings.env == "development" else [settings.cors_origin],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -66,6 +78,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 # ── 注册路由 ─────────────────────────────────────────────
 app.include_router(health_router)
 app.include_router(chat_router)
+app.include_router(vrm_router)
 
 
 @app.get("/")
