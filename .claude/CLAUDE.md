@@ -42,12 +42,15 @@ a5-digital-human/
 │
 ├── backend/                       # 后端业务逻辑扩展
 │   ├── config.py                  # Settings 类（pydantic-settings）
+│   ├── http_client.py             # 全局 httpx 客户端（复用连接池）
 │   ├── routes/
 │   │   ├── chat.py                # 核心对话路由（/message, /voice, /stream, /stream-tts）
 │   │   ├── health.py              # 健康检查
+│   │   ├── scenic.py              # 景区信息 CRUD API（11 端点）
 │   │   └── vrm.py                 # VRM 模型管理（从 live2d.py 迁移）
 │   ├── repository/
-│   │   └── chat_repo.py           # SQLite 对话持久化（WAL 模式）
+│   │   ├── chat_repo.py           # SQLite 对话持久化（WAL 模式）
+│   │   └── scenic_repo.py         # 景区数据仓储（5 表 CRUD + 种子数据）
 │   └── services/
 │       ├── dify_client.py         # Dify 对话 API 封装
 │       ├── tts_service.py         # Edge-TTS + Kokoro + pyttsx3 三级降级
@@ -79,6 +82,7 @@ a5-digital-human/
 │   ├── conftest.py
 │   ├── test_chat_chain.py         # 核心链路测试（≥5 用例）
 │   ├── test_dify_rag.py           # RAG 检索测试
+│   ├── test_scenic_repo.py        # 景区仓储 CRUD 测试
 │   └── test_tts_asr.py            # 语音闭环测试
 │
 ├── docs/                          # 文档

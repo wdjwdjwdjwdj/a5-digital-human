@@ -8,7 +8,7 @@
 import logging
 from pathlib import Path
 
-from httpx import HTTPError
+from httpx import ConnectError, HTTPError, TimeoutException
 
 from backend.config import settings
 from backend.http_client import get_http_client
@@ -60,6 +60,12 @@ class DifyClient:
             resp = await client.post(url, headers=headers, json=payload, timeout=_TIMEOUT_CHAT)
             resp.raise_for_status()
             return resp.json()
+        except ConnectError as e:
+            logger.error("[DifyClient] 连接失败: %s", e)
+            return None
+        except TimeoutException as e:
+            logger.error("[DifyClient] 请求超时: %s", e)
+            return None
         except HTTPError as e:
             logger.error("[DifyClient] 对话请求失败: %s", e)
             return None

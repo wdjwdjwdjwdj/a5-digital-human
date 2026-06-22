@@ -10,6 +10,7 @@ import logging
 import time
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Any
 
 from backend.config import settings
 
@@ -271,7 +272,7 @@ class RealtimeTTSManager:
             logger.error("[TTS] Kokoro 合成失败: %s", e, exc_info=True)
             return None
 
-    def _load_kokoro(self) -> object | None:
+    def _load_kokoro(self) -> Any | None:
         """延迟加载 Kokoro 模型。
 
         Returns:

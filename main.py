@@ -5,6 +5,7 @@ import logging
 import sys
 import time
 from collections import defaultdict
+from collections.abc import Awaitable, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -137,7 +138,7 @@ _SECURITY_HEADERS = {
 
 
 @app.middleware("http")
-async def add_security_headers(request, call_next):
+async def add_security_headers(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
     """为所有响应添加安全响应头。"""
     response: Response = await call_next(request)
     for key, value in _SECURITY_HEADERS.items():
@@ -146,7 +147,7 @@ async def add_security_headers(request, call_next):
 
 
 @app.middleware("http")
-async def rate_limit_middleware(request: Request, call_next):
+async def rate_limit_middleware(request: Request, call_next: Callable[[Request], Awaitable[Response]]) -> Response:
     """速率限制中间件（仅对 /chat/ 端点生效）。"""
     allowed = await _rate_limiter.check(request)
     if not allowed:

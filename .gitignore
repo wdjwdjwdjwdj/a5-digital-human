@@ -8,3 +8,9 @@ __pycache__/
 frontend/static/audio/
 *.wav
 server.log
+sensenova_config.py
+design-spec.md
+ui-design.pen
+PROTOTYPE_V2_MIGRATION.md
+prototype-v2/
+a5-admin-design/

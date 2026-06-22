@@ -4,6 +4,7 @@ import asyncio
 import logging
 from pathlib import Path
 from tempfile import NamedTemporaryFile
+from typing import Any
 
 import numpy as np
 
@@ -24,7 +25,7 @@ class VADManager:
         self._threshold: float = 0.3
         self._min_silence_duration_ms: int = 800
 
-    def _load_model(self) -> object | None:
+    def _load_model(self) -> Any | None:
         """延迟加载 Silero VAD 模型。
 
         Returns:
@@ -209,7 +210,7 @@ class ASRManager:
         self._model = None  # lazy load
         self.vad = VADManager()
 
-    def _load_model(self) -> object | None:
+    def _load_model(self) -> Any | None:
         """延迟加载 FunASR 模型。"""
         if self._model is not None:
             return self._model

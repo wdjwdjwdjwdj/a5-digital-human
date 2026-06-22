@@ -69,6 +69,12 @@ class ChatBot:
         self._token_usage: dict[str, int] = {}
         self._max_session_tokens: int = 8192  # 单会话 Token 预算上限
 
+    # ═══════════════════════════════════════════════════════════════
+    # SECTION: chat() — Non-streaming single-response dialogue
+    # TODO: Split into chat_router (input validation + session mgmt)
+    #       and chat_engine (LLM call + fallback logic) for testability.
+    # ═══════════════════════════════════════════════════════════════
+
     async def chat(self, query: str, context: str | None = None, session_id: str = "default") -> str | None:
         """生成回答，自动降级，支持多轮对话。
 
@@ -532,6 +538,12 @@ class ChatBot:
             return "图片识别服务暂时不可用，您可以用文字描述图片内容，我会尽力帮您解答。"
 
     # ── 流式对话 ────────────────────────────────────────
+
+    # ═══════════════════════════════════════════════════════════════
+    # SECTION: chat_stream() — Streaming token-by-token dialogue
+    # TODO: Split into stream_router (SSE framing + sentence splitting)
+    #       and stream_engine (LLM streaming + fallback).
+    # ═══════════════════════════════════════════════════════════════
 
     async def chat_stream(
         self,

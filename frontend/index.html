@@ -431,6 +431,7 @@ loader.load('/static/vrm/AliciaSolid.vrm', function(gltf) {
 
 function animate() {
   requestAnimationFrame(animate);
+  var chatPage=document.getElementById('pageChat'); if(!chatPage||chatPage.classList.contains('hidden')) return;
   const delta = clock.getDelta();
   if (isSpeaking && audioAnalyser && currentVrm?.blendShapeProxy) {
     const data = new Uint8Array(audioAnalyser.frequencyBinCount);
@@ -521,11 +522,11 @@ window.playVRMAudio = async function(audioUrl) {
           setSpeaking(false);
           if (emotion) setTimeout(function() { if (window.setVRMExpression) window.setVRMExpression(emotion); }, 300);
         }).catch(function() {
-          var a = new Audio(audioUrl); a.play().catch(function(){});
+          var a = new Audio(audioUrl); a.play().catch(function(err){console.warn("Audio play error:",err)});
           a.onended = function() { setSpeaking(false); if (emotion) setTimeout(function() { if (window.setVRMExpression) window.setVRMExpression(emotion); }, 300); };
         });
       } else {
-        var a = new Audio(audioUrl); a.play().catch(function(){});
+        var a = new Audio(audioUrl); a.play().catch(function(err){console.warn("Audio play error:",err)});
         a.onended = function() { setSpeaking(false); if (emotion) setTimeout(function() { if (window.setVRMExpression) window.setVRMExpression(emotion); }, 300); };
       }
     } else if (role === 'bot' && emotion) {
@@ -554,7 +555,7 @@ window.playVRMAudio = async function(audioUrl) {
       var data = await resp.json();
       showTyping(false);
       addMessage(data.reply, 'bot', data.audio_url || null);
-    } catch (err) { showTyping(false); addMessage('网络连接失败，请检查服务是否运行。', 'bot'); }
+    } catch (err) { showTyping(false); if(err.name==="AbortError"){addMessage('请求超时，请重试。','bot')}else if(err instanceof TypeError){addMessage('无法连接服务器，请检查服务状态。','bot')}else if(err instanceof SyntaxError){addMessage('服务器返回格式异常，请稍后重试。','bot')}else{addMessage('网络连接失败，请检查服务是否运行。','bot')} }
     finally { sendBtn.disabled = false; }
   };
 
@@ -576,7 +577,7 @@ window.playVRMAudio = async function(audioUrl) {
   if (SR) {
     recognition = new SR();
     recognition.lang = 'zh-CN'; recognition.continuous = false; recognition.interimResults = false; recognition.maxAlternatives = 1;
-    recognition.onresult = function(e) { voiceBtn.className = 'voice-btn'; sendMessageWithText(e.results[0][0].transcript); };
+    recognition.onresult = function(e) { voiceBtn.className = 'voice-btn'; if(mediaRecorder&&mediaRecorder.state!=='inactive')mediaRecorder.stop(); if(mediaRecorder&&mediaRecorder.stream)mediaRecorder.stream.getTracks().forEach(function(t){t.stop()}); sendMessageWithText(e.results[0][0].transcript); };
     recognition.onerror = function() { voiceBtn.className = 'voice-btn'; };
     recognition.onend = function() { voiceBtn.className = 'voice-btn'; };
 
@@ -598,7 +599,7 @@ window.playVRMAudio = async function(audioUrl) {
           setTimeout(function() {
             if (isRecording) { if (recognition) recognition.stop(); if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop(); isRecording = false; voiceBtn.className = 'voice-btn'; }
           }, 8000);
-        }).catch(function() {});
+        }).catch(function(err) { isRecording=false; voiceBtn.className="voice-btn"; recognition=null; console.warn("Voice getUserMedia error:", err); });
       }
     });
   } else {
@@ -709,6 +710,7 @@ function showContent() {
 }
 
 function initMap() {
+  if (typeof L === "undefined") { console.warn("Leaflet unavailable"); return; }
   if (mapInitialized) return;
   mapInitialized = true;
   map = L.map('realMap', { center: [31.428, 120.088], zoom: 15, zoomControl: false, attributionControl: false });

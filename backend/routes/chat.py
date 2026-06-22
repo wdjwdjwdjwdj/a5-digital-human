@@ -392,7 +392,7 @@ async def stream_message(req: StreamRequest) -> dict:
 
 
 @router.get("/stream-tts")
-async def stream_tts(query: str = "", text: str = "", session_id: str = "default"):
+async def stream_tts(query: str = "", text: str = "", session_id: str = "default") -> StreamingResponse:
     """SSE 流式端点：LLM 流式 → 累积成句 → TTS 流式管道。
 
     两种模式：

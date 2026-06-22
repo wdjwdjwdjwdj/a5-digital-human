@@ -3,6 +3,7 @@
 import logging
 import traceback
 from pathlib import Path
+from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request
 
@@ -37,7 +38,7 @@ def _check_admin_token(request: Request) -> None:
         raise HTTPException(status_code=401, detail="Unauthorized: 无效的管理员令牌")
 
 
-def _response(success: bool, data: any = None, error: str | None = None) -> dict:
+def _response(success: bool, data: Any = None, error: str | None = None) -> dict:
     """构建统一 JSON 响应格式。"""
     return {"success": success, "data": data, "error": error}
 
@@ -163,7 +164,7 @@ async def get_config() -> dict:
         config = await _repo.get_config()
         return _response(True, config)
     except Exception:
-        logger.error("[ScenicRoute] GET /config 失败: %s", traceback.format_exc())
+        logger.error("[ScenicRoute] GET /config 失败", exc_info=True)
         return _response(True, dict(_CONFIG_DEFAULTS))
 
 

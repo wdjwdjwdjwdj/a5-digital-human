@@ -282,7 +282,10 @@ class ScenicRepository:
             conn.commit()
             return cursor
         except Exception:
-            conn.rollback()
+            try:
+                conn.rollback()
+            except Exception:
+                logger.warning("[ScenicRepo] rollback 失败: %s", traceback.format_exc())
             raise
         finally:
             conn.close()
