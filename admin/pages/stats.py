@@ -1,5 +1,6 @@
 """数据大屏页面：对话统计、热门问题、趋势分析。"""
 
+import asyncio
 import logging
 import sqlite3
 from datetime import datetime, timedelta
@@ -17,8 +18,21 @@ _DB_PATH = Path("data/conversations.db")
 
 def render_page() -> None:
     """渲染数据大屏页面。"""
-    st.title("📊 数据大屏")
+    st.title("🏔️ 灵山胜境 · 数据大屏")
     st.markdown("对话数据统计与分析概览。")
+
+    # ── 灵山主题 CSS ──────────────────────────────────────
+    st.markdown("""
+    <style>
+        .stApp header { background-color: #2B5F75 !important; }
+        div[data-testid="stMetricValue"] { color: #2B5F75 !important; font-weight: 700 !important; }
+        div[data-testid="stMetricLabel"] { color: #1A3A4A !important; }
+        .st-emotion-cache-1wivap2 { color: #C73E3A !important; }
+        h1, h2, h3 { color: #2B5F75 !important; }
+        section[data-testid="stSidebar"] { background: #1A3A4A !important; }
+        section[data-testid="stSidebar"] * { color: #FFFFFF !important; }
+    </style>
+    """, unsafe_allow_html=True)
 
     # ── 确保数据库和表存在 ─────────────────────────────────
     if not _DB_PATH.exists():
@@ -86,6 +100,85 @@ def render_page() -> None:
             st.line_chart(chart_data, x="日期", y="对话次数")
         else:
             st.caption("暂无数据")
+
+    # ── 游客感受度报告 ─────────────────────────────────────
+    st.divider()
+    st.subheader("😊 游客感受度分析")
+
+    if _DB_PATH.exists():
+        # 整体情感分布
+        sentiment = asyncio.run(chat_repo.get_overall_sentiment())
+        total_sentiment = sentiment["positive"] + sentiment["neutral"] + sentiment["negative"]
+        if total_sentiment > 0:
+            sat_col1, sat_col2 = st.columns([1, 2])
+            with sat_col1:
+                st.caption("情感分布")
+                sat_data = {
+                    "情感": ["积极 😊", "中性 😐", "消极 😟"],
+                    "占比": [
+                        round(sentiment["positive"] / total_sentiment * 100, 1),
+                        round(sentiment["neutral"] / total_sentiment * 100, 1),
+                        round(sentiment["negative"] / total_sentiment * 100, 1),
+                    ],
+                }
+                st.bar_chart(sat_data, x="情感", y="占比", color=["#2B5F75", "#F5F0E8", "#C73E3A"])
+            with sat_col2:
+                st.caption(f"共 {total_sentiment} 条有情感标签的对话")
+                st.metric("积极", sentiment["positive"], delta=None)
+                st.metric("中性", sentiment["neutral"], delta=None)
+                st.metric("消极", sentiment["negative"], delta=None)
+        else:
+            st.info("⏳ 暂无情感标签数据，开始对话后自动采集。")
+
+        # 情感趋势折线图
+        st.subheader("📈 情感趋势（近 7 日）")
+        trend = asyncio.run(chat_repo.get_sentiment_trend(days=7))
+        if trend and any(t["total"] > 0 for t in trend):
+            trend_data = {
+                "日期": [t["date"][5:] for t in trend],
+                "积极": [t["positive"] for t in trend],
+                "中性": [t["neutral"] for t in trend],
+                "消极": [t["negative"] for t in trend],
+            }
+            st.line_chart(trend_data, x="日期", y=["积极", "中性", "消极"], color=["#2B5F75", "#4A8FA8", "#C73E3A"])
+        else:
+            st.caption("暂无情感趋势数据")
+
+        # 关注热点（含情感评分）
+        st.subheader("🔥 关注热点（情感排名）")
+        hot = asyncio.run(chat_repo.get_hot_topics(limit=10))
+        if hot:
+            hot_data = []
+            for h in hot:
+                sentiment_label = (
+                    "积极" if h["avg_satisfaction"] >= 2.5 else ("中性" if h["avg_satisfaction"] >= 1.5 else "消极")
+                )
+                hot_data.append(
+                    {
+                        "问题": h["query"][:25] + ("..." if len(h["query"]) > 25 else ""),
+                        "频次": h["count"],
+                        "平均情感分": h["avg_satisfaction"],
+                        "情感倾向": sentiment_label,
+                    }
+                )
+            st.dataframe(hot_data, use_container_width=True, hide_index=True)
+        else:
+            st.caption("暂无关注热点数据")
+
+        # 服务改进建议
+        st.subheader("💡 服务改进建议")
+        suggestions = asyncio.run(chat_repo.get_service_suggestions(limit=5))
+        if suggestions:
+            for s in suggestions:
+                st.warning(
+                    f"**「{s['query'][:40]}」** — "
+                    f"消极反馈 {s['negative_count']}/{s['total_count']} 次\n\n"
+                    f"{s['suggestion']}"
+                )
+        else:
+            st.caption("暂无服务改进建议，当前所有话题反馈良好 👍")
+    else:
+        st.info("💡 尚无对话数据，开始对话后将自动生成感受度报告。")
 
     # ── 详细表格 ───────────────────────────────────────────
     st.divider()
@@ -206,7 +299,7 @@ def _load_stats() -> dict[str, Any]:
 
 def _ensure_tables() -> None:
     """确保 conversations 表存在（委托给 chat_repo）。"""
-    chat_repo.ensure_tables()
+    asyncio.run(chat_repo.ensure_tables())
 
 
 def _render_empty_state() -> None:

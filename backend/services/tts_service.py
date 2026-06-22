@@ -1,15 +1,85 @@
 """Edge-TTS 及降级 TTS 服务封装。
 
 多级降级链路：Edge-TTS → Kokoro → pyttsx3
+TTS 磁盘缓存：MD5 哈希键，按前缀分目录，TTL 24h。
 """
 
+import asyncio
+import hashlib
 import logging
+import time
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
 from backend.config import settings
 
 logger = logging.getLogger(__name__)
+
+# TTS 磁盘缓存配置
+_TTS_CACHE_DIR = Path("data/cache/tts")
+_TTS_CACHE_TTL = 86400  # 24 小时（秒）
+
+
+def _tts_cache_key(text: str) -> str:
+    """生成 TTS 缓存键（MD5 哈希）。
+
+    Args:
+        text: 要合成的文本
+
+    Returns:
+        MD5 十六进制字符串
+    """
+    return hashlib.md5(text.encode("utf-8")).hexdigest()
+
+
+def _tts_cache_get(text: str) -> bytes | None:
+    """从磁盘缓存读取 TTS 音频。
+
+    Args:
+        text: 要合成的文本
+
+    Returns:
+        音频字节流或 None
+    """
+    key = _tts_cache_key(text)
+    cache_path = _TTS_CACHE_DIR / key[:2] / f"{key}.wav"
+    if cache_path.exists():
+        logger.info("[TTS] 磁盘缓存命中: %s", key[:12])
+        return cache_path.read_bytes()
+    return None
+
+
+def _tts_cache_set(text: str, audio_bytes: bytes) -> None:
+    """写入 TTS 音频到磁盘缓存。
+
+    Args:
+        text: 要合成的文本
+        audio_bytes: 音频字节数据
+    """
+    key = _tts_cache_key(text)
+    cache_dir = _TTS_CACHE_DIR / key[:2]
+    cache_dir.mkdir(parents=True, exist_ok=True)
+    cache_path = cache_dir / f"{key}.wav"
+    cache_path.write_bytes(audio_bytes)
+    logger.info("[TTS] 磁盘缓存写入: %s (%d 字节)", key[:12], len(audio_bytes))
+
+
+def _cleanup_expired_cache() -> None:
+    """启动时清理超过 24 小时的缓存文件。"""
+    if not _TTS_CACHE_DIR.exists():
+        return
+    now_time = time.time()
+    cutoff = now_time - _TTS_CACHE_TTL
+    removed = 0
+    for f in _TTS_CACHE_DIR.rglob("*.wav"):
+        try:
+            if f.stat().st_mtime < cutoff:
+                f.unlink()
+                removed += 1
+        except OSError:
+            continue
+    if removed:
+        logger.info("[TTS] 清理过期缓存 %d 个文件", removed)
 
 
 class RealtimeTTSManager:
@@ -25,11 +95,20 @@ class RealtimeTTSManager:
         self.voice: str = settings.tts_voice
         self._kokoro_available: bool | None = None
         self._kokoro_pipeline = None
+        _cleanup_expired_cache()
 
     # ── 公开接口 ────────────────────────────────────────────
 
+    async def _tts_cache_get_async(self, text: str) -> bytes | None:
+        """异步包装的 TTS 缓存读取。"""
+        return await asyncio.to_thread(_tts_cache_get, text)
+
+    async def _tts_cache_set_async(self, text: str, audio_bytes: bytes) -> None:
+        """异步包装的 TTS 缓存写入。"""
+        await asyncio.to_thread(_tts_cache_set, text, audio_bytes)
+
     async def synthesize(self, text: str) -> bytes | None:
-        """合成语音，引擎自动降级。
+        """合成语音，引擎自动降级（带 TTS 磁盘缓存）。
 
         Args:
             text: 要合成的文本
@@ -37,18 +116,28 @@ class RealtimeTTSManager:
         Returns:
             音频字节流，None 表示全部失败
         """
+        # TTS 磁盘缓存检查（异步包装避免阻塞事件循环）
+        cached = await self._tts_cache_get_async(text)
+        if cached is not None:
+            return cached
+
         # 引擎 1：Edge-TTS
         audio = await self._try_edge_tts(text)
         if audio is not None:
+            await self._tts_cache_set_async(text, audio)
             return audio
 
         # 引擎 2：Kokoro
         audio = await self._try_kokoro(text)
         if audio is not None:
+            await self._tts_cache_set_async(text, audio)
             return audio
 
         # 引擎 3：pyttsx3（兜底）
-        return self._try_pyttsx3(text)
+        audio = await self._try_pyttsx3(text)
+        if audio is not None:
+            await self._tts_cache_set_async(text, audio)
+        return audio
 
     async def stream_synthesize(self, text: str):
         """流式合成语音，逐 chunk 产出音频字节。
@@ -81,7 +170,7 @@ class RealtimeTTSManager:
             return
 
         # 兜底：pyttsx3
-        audio = self._try_pyttsx3(text)
+        audio = await self._try_pyttsx3(text)
         if audio is not None:
             yield audio
 
@@ -119,10 +208,31 @@ class RealtimeTTSManager:
     # ── 引擎 2：Kokoro ─────────────────────────────────────
 
     async def _try_kokoro(self, text: str) -> bytes | None:
-        """Kokoro TTS 合成。
+        """Kokoro TTS 合成（异步包装）。
 
         需预先安装 kokoro 包（pip install kokoro）。
-        首次调用时延迟加载模型。
+        首次调用时延迟加载模型，同步操作通过 asyncio.to_thread 迁移到线程池。
+
+        Args:
+            text: 要合成的文本
+
+        Returns:
+            WAV 音频字节流或 None
+        """
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(self._sync_try_kokoro, text),
+                timeout=30.0,
+            )
+        except asyncio.TimeoutError:
+            logger.error("[TTS] Kokoro 合成超时")
+            return None
+        except Exception as e:
+            logger.error("[TTS] Kokoro 合成失败: %s", e, exc_info=True)
+            return None
+
+    def _sync_try_kokoro(self, text: str) -> bytes | None:
+        """Kokoro TTS 合成的同步实现（在线程池中运行）。
 
         Args:
             text: 要合成的文本
@@ -189,9 +299,11 @@ class RealtimeTTSManager:
 
     # ── 引擎 3：pyttsx3（兜底）─────────────────────────────
 
-    @staticmethod
-    def _try_pyttsx3(text: str) -> bytes | None:
-        """pyttsx3 离线 TTS 合成。
+    async def _try_pyttsx3(self, text: str) -> bytes | None:
+        """pyttsx3 离线 TTS 合成（异步包装）。
+
+        pyttsx3 的 init + save_to_file + runAndWait 均为同步阻塞操作，
+        通过 asyncio.to_thread 迁移到线程池执行。
 
         Args:
             text: 要合成的文本
@@ -199,6 +311,20 @@ class RealtimeTTSManager:
         Returns:
             WAV 音频字节流或 None
         """
+        try:
+            return await asyncio.wait_for(
+                asyncio.to_thread(self._sync_try_pyttsx3, text),
+                timeout=30.0,
+            )
+        except asyncio.TimeoutError:
+            logger.error("[TTS] pyttsx3 超时")
+            return None
+        except Exception as e:
+            logger.error("[TTS] pyttsx3 降级也失败: %s", e, exc_info=True)
+            return None
+
+    def _sync_try_pyttsx3(self, text: str) -> bytes | None:
+        """pyttsx3 离线 TTS 合成的同步实现。"""
         try:
             import pyttsx3
 

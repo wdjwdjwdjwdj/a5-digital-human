@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>表单页原型 - A5景区导览</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f5f0e8;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%);
+      color: #fff;
+      padding: 30px;
+      border-radius: 20px;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 40px rgba(76,175,80,0.2);
+    }
+    
+    .header h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    
+    .header p {
+      font-size: 16px;
+      opacity: 0.9;
+    }
+    
+    .prototype-info {
+      background: #fff;
+      border-radius: 15px;
+      padding: 25px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    
+    .prototype-info h2 {
+      font-size: 20px;
+      color: #4CAF50;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .prototype-info ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    
+    .prototype-info li {
+      padding: 8px 0;
+      padding-left: 25px;
+      position: relative;
+    }
+    
+    .prototype-info li:before {
+      content: "▸";
+      position: absolute;
+      left: 0;
+      color: #4CAF50;
+      font-weight: bold;
+    }
+    
+    .states-section {
+      margin-bottom: 40px;
+    }
+    
+    .states-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .states-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 25px;
+    }
+    
+    .state-card {
+      background: #fff;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+      transition: transform 0.3s, box-shadow 0.3s;
+      cursor: pointer;
+    }
+    
+    .state-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+    }
+    
+    .state-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .state-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    
+    .state-badge {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .badge-default { background: #e3f2fd; color: #1976d2; }
+    .badge-hover { background: #fff3e0; color: #f57c00; }
+    .badge-click { background: #fce4ec; color: #c2185b; }
+    .badge-loading { background: #f3e5f5; color: #7b1fa2; }
+    .badge-empty { background: #fafafa; color: #616161; }
+    .badge-error { background: #ffebee; color: #d32f2f; }
+    
+    .state-demo {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 15px;
+      min-height: 250px;
+    }
+    
+    .demo-form-group {
+      margin-bottom: 20px;
+    }
+    
+    .demo-form-label {
+      display: block;
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 8px;
+    }
+    
+    .demo-form-label .required {
+      color: #C73E3A;
+      margin-left: 3px;
+    }
+    
+    .demo-form-input {
+      width: 100%;
+      padding: 12px 15px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.3s;
+      font-family: inherit;
+    }
+    
+    .demo-form-input:focus {
+      outline: none;
+      border-color: #4CAF50;
+      box-shadow: 0 0 0 3px rgba(76,175,80,0.1);
+    }
+    
+    .demo-form-input:hover {
+      border-color: #4CAF50;
+    }
+    
+    .demo-form-input.error {
+      border-color: #C73E3A;
+      background: rgba(199,62,58,0.02);
+    }
+    
+    .demo-form-input.success {
+      border-color: #4CAF50;
+      background: rgba(76,175,80,0.02);
+    }
+    
+    .demo-form-hint {
+      font-size: 12px;
+      color: #999;
+      margin-top: 5px;
+    }
+    
+    .demo-form-error {
+      font-size: 12px;
+      color: #C73E3A;
+      margin-top: 5px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .demo-form-success {
+      font-size: 12px;
+      color: #4CAF50;
+      margin-top: 5px;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    
+    .demo-form-textarea {
+      width: 100%;
+      padding: 12px 15px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.3s;
+      font-family: inherit;
+      resize: vertical;
+      min-height: 100px;
+    }
+    
+    .demo-form-textarea:focus {
+      outline: none;
+      border-color: #4CAF50;
+      box-shadow: 0 0 0 3px rgba(76,175,80,0.1);
+    }
+    
+    .demo-form-select {
+      width: 100%;
+      padding: 12px 15px;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      font-size: 14px;
+      transition: all 0.3s;
+      font-family: inherit;
+      background: #fff;
+      cursor: pointer;
+    }
+    
+    .demo-form-select:focus {
+      outline: none;
+      border-color: #4CAF50;
+      box-shadow: 0 0 0 3px rgba(76,175,80,0.1);
+    }
+    
+    .demo-submit-btn {
+      width: 100%;
+      padding: 15px;
+      background: linear-gradient(135deg, #4CAF50 0%, #66BB6A 100%);
+      color: #fff;
+      border: none;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.3s;
+      margin-top: 10px;
+    }
+    
+    .demo-submit-btn:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(76,175,80,0.3);
+    }
+    
+    .demo-submit-btn:active {
+      transform: translateY(0);
+    }
+    
+    .demo-submit-btn.loading {
+      opacity: 0.7;
+      cursor: not-allowed;
+      position: relative;
+    }
+    
+    .demo-submit-btn.loading:after {
+      content: "";
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border: 2px solid #fff;
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      right: 20px;
+      top: 50%;
+      margin-top: -10px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .loading-demo {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e0e0e0;
+      border-top-color: #4CAF50;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    
+    .loading-text {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .empty-demo {
+      text-align: center;
+      padding: 60px 20px;
+      color: #999;
+    }
+    
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+      opacity: 0.5;
+    }
+    
+    .empty-text {
+      font-size: 16px;
+      color: #999;
+      margin-bottom: 10px;
+    }
+    
+    .error-demo {
+      text-align: center;
+      padding: 60px 20px;
+      color: #d32f2f;
+    }
+    
+    .error-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+    }
+    
+    .error-text {
+      font-size: 16px;
+      color: #d32f2f;
+      margin-bottom: 10px;
+    }
+    
+    .error-hint {
+      font-size: 13px;
+      color: #999;
+      margin-bottom: 20px;
+    }
+    
+    .retry-btn {
+      padding: 10px 24px;
+      background: #4CAF50;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    .retry-btn:hover {
+      background: #388E3C;
+    }
+    
+    .state-description {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.6;
+    }
+    
+    .interaction-notes {
+      background: #fffde7;
+      border-left: 4px solid #ffc107;
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 30px;
+    }
+    
+    .notes-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f57c00;
+      margin-bottom: 10px;
+    }
+    
+    .notes-content {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.8;
+    }
+    
+    .notes-content p {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📝 表单页原型</h1>
+      <p>景点表单页 - 组件状态与交互流程</p>
+    </div>
+    
+    <div class="prototype-info">
+      <h2>原型说明</h2>
+      <ul>
+        <li>展示表单页的6种核心状态：默认、悬停、点击（聚焦）、验证错误、提交中、提交成功</li>
+        <li>包含所有表单组件（输入框、下拉框、文本域、按钮）的状态变化</li>
+        <li>标注了详细的交互说明和表单验证规则</li>
+        <li>采用 ardot 设计风格，简洁清晰，注重表单可用性</li>
+      </ul>
+    </div>
+    
+    <div class="states-section">
+      <div class="states-title">🎯 组件状态展示</div>
+      
+      <div class="states-grid">
+        <!-- 默认状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">默认状态</div>
+            <div class="state-badge badge-default">Default</div>
+          </div>
+          <div class="state-demo">
+            <div class="demo-form-group">
+              <label class="demo-form-label">景点名称 <span class="required">*</span></label>
+              <input type="text" class="demo-form-input" placeholder="请输入景点名称">
+              <div class="demo-form-hint">请输入2-20个字符</div>
+            </div>
+            <div class="demo-form-group">
+              <label class="demo-form-label">景点类型 <span class="required">*</span></label>
+              <select class="demo-form-select">
+                <option value="">请选择景点类型</option>
+                <option value="temple">寺庙</option>
+                <option value="park">公园</option>
+                <option value="mountain">山川</option>
+              </select>
+            </div>
+          </div>
+          <div class="state-description">
+            表单组件默认展示状态，包含标签、输入框、提示文字等元素，布局清晰。
+          </div>
+        </div>
+        
+        <!-- 悬停/聚焦状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">聚焦状态</div>
+            <div class="state-badge badge-hover">Focus</div>
+          </div>
+          <div class="state-demo">
+            <div class="demo-form-group">
+              <label class="demo-form-label">景点名称 <span class="required">*</span></label>
+              <input type="text" class="demo-form-input" style="border-color: #4CAF50; box-shadow: 0 0 0 3px rgba(76,175,80,0.1);" value="灵山大佛">
+              <div class="demo-form-hint">请输入2-20个字符</div>
+            </div>
+            <div class="demo-form-group">
+              <label class="demo-form-label">景点描述</label>
+              <textarea class="demo-form-textarea" style="border-color: #4CAF50; box-shadow: 0 0 0 3px rgba(76,175,80,0.1);" placeholder="请输入景点描述">灵山大佛是无锡的标志性景点...</textarea>
+            </div>
+          </div>
+          <div class="state-description">
+            输入框聚焦时，边框变色并添加外阴影，提示用户当前输入位置。
+          </div>
+        </div>
+        
+        <!-- 验证错误状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">验证错误</div>
+            <div class="state-badge badge-error">Error</div>
+          </div>
+          <div class="state-demo">
+            <div class="demo-form-group">
+              <label class="demo-form-label">景点名称 <span class="required">*</span></label>
+              <input type="text" class="demo-form-input error" value="">
+              <div class="demo-form-error">⚠️ 景点名称不能为空</div>
+            </div>
+            <div class="demo-form-group">
+              <label class="demo-form-label">门票价格 <span class="required">*</span></label>
+              <input type="text" class="demo-form-input error" value="abc">
+              <div class="demo-form-error">⚠️ 请输入有效的数字</div>
+            </div>
+          </div>
+          <div class="state-description">
+            表单验证失败时，输入框边框变红，显示错误图标和提示文字，引导用户修正。
+          </div>
+        </div>
+        
+        <!-- 验证成功状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">验证成功</div>
+            <div class="state-badge badge-click">Success</div>
+          </div>
+          <div class="state-demo">
+            <div class="demo-form-group">
+              <label class="demo-form-label">景点名称 <span class="required">*</span></label>
+              <input type="text" class="demo-form-input success" value="灵山大佛">
+              <div class="demo-form-success">✓ 名称可用</div>
+            </div>
+            <div class="demo-form-group">
+              <label class="demo-form-label">门票价格 <span class="required">*</span></label>
+              <input type="text" class="demo-form-input success" value="210">
+              <div class="demo-form-success">✓ 格式正确</div>
+            </div>
+          </div>
+          <div class="state-description">
+            表单验证通过时，输入框边框变绿，显示成功图标和提示文字，增强用户信心。
+          </div>
+        </div>
+        
+        <!-- 提交中状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">提交中状态</div>
+            <div class="state-badge badge-loading">Loading</div>
+          </div>
+          <div class="state-demo">
+            <div class="demo-form-group">
+              <label class="demo-form-label">景点名称</label>
+              <input type="text" class="demo-form-input" value="灵山大佛" disabled>
+            </div>
+            <div class="demo-form-group">
+              <label class="demo-form-label">景点描述</label>
+              <textarea class="demo-form-textarea" disabled>灵山大佛是无锡的标志性景点...</textarea>
+            </div>
+            <button class="demo-submit-btn loading" disabled>提交中...</button>
+          </div>
+          <div class="state-description">
+            表单提交时，所有输入框禁用，按钮显示加载动画，防止重复提交。
+          </div>
+        </div>
+        
+        <!-- 提交成功状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">提交成功</div>
+            <div class="state-badge badge-empty">Success</div>
+          </div>
+          <div class="state-demo">
+            <div style="text-align: center; padding: 40px 20px;">
+              <div style="font-size: 64px; margin-bottom: 20px;">✅</div>
+              <div style="font-size: 20px; font-weight: 600; color: #4CAF50; margin-bottom: 10px;">提交成功！</div>
+              <div style="font-size: 14px; color: #666;">景点信息已成功保存，正在跳转到列表页...</div>
+            </div>
+          </div>
+          <div class="state-description">
+            表单提交成功后，显示成功图标和提示文字，自动跳转到列表页或详情页。
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="interaction-notes">
+      <div class="notes-title">📝 交互说明注释</div>
+      <div class="notes-content">
+        <p><strong>1. 表单验证规则：</strong></p>
+        <p>• 必填字段（*）在提交时验证，失焦时实时验证</p>
+        <p>• 文本输入：2-20个字符，支持中英文</p>
+        <p>• 数字输入：必须为有效数字，可设置范围</p>
+        <p>• 图片上传：支持 JPG/PNG，大小不超过 5MB</p>
+        
+        <p><strong>2. 错误提示设计：</strong></p>
+        <p>• 错误信息显示在输入框下方，使用红色文字+图标</p>
+        <p>• 错误输入框边框变红，背景微红</p>
+        <p>• 首次加载时不显示验证错误，避免干扰用户</p>
+        
+        <p><strong>3. 提交按钮状态：</strong></p>
+        <p>• 默认状态：可点击，显示"提交"</p>
+        <p>• 加载状态：禁用，显示加载动画和"提交中..."</p>
+        <p>• 成功状态：跳转到成功页或列表页</p>
+        <p>• 失败状态：显示错误提示，允许重新提交</p>
+        
+        <p><strong>4. 用户体验优化：</strong></p>
+        <p>• 表单填写进度自动保存（本地存储）</p>
+        <p>• 支持草稿功能，用户可稍后继续填写</p>
+        <p>• 提供"重置"按钮，清空所有填写内容</p>
+        <p>• 提交成功后，清空表单或跳转到下一页</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

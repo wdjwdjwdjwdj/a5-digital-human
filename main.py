@@ -3,10 +3,12 @@
 import asyncio
 import logging
 import sys
+import time
+from collections import defaultdict
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -14,9 +16,58 @@ from fastapi.staticfiles import StaticFiles
 from backend.config import settings
 from backend.routes.chat import router as chat_router
 from backend.routes.health import router as health_router
+from backend.routes.scenic import router as scenic_router
 from backend.routes.vrm import router as vrm_router
 
 # ── 日志配置 ──────────────────────────────────────────────
+
+# ── 速率限制（内存滑动窗口） ──────────────────────────────
+_CHAT_RATE_LIMIT: int = 60  # 每分钟最多 60 次请求
+_CHAT_RATE_WINDOW: float = 60.0  # 滑动窗口大小（秒）
+
+
+class _RateLimiter:
+    """简单内存速率限制器，基于滑动窗口计数器。
+
+    按客户端 IP 和请求路径前缀分别计数。
+    窗口大小和限制可通过类属性调整。
+    """
+
+    def __init__(self) -> None:
+        self._windows: dict[str, list[float]] = defaultdict(list)
+
+    async def check(self, request: Request) -> bool:
+        """检查请求是否超过速率限制。
+
+        Args:
+            request: FastAPI 请求对象
+
+        Returns:
+            True 表示允许通过，False 表示超过限制
+        """
+        # 仅对 /chat/ 开头的路径做速率限制
+        if not request.url.path.startswith("/chat/"):
+            return True
+
+        client_ip: str = request.client.host if request.client else "unknown"
+        key = f"{client_ip}:chat"
+        now = time.time()
+        window = self._windows[key]
+
+        # 移除窗口外的旧时间戳
+        cutoff = now - _CHAT_RATE_WINDOW
+        while window and window[0] < cutoff:
+            window.pop(0)
+
+        if len(window) >= _CHAT_RATE_LIMIT:
+            logger.warning("[RateLimit] 超出限制: IP=%s, 当前窗口=%d 次", client_ip, len(window))
+            return False
+
+        window.append(now)
+        return True
+
+
+_rate_limiter = _RateLimiter()
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
     format="%(asctime)s [%(name)s] %(levelname)s: %(message)s",
@@ -38,6 +89,8 @@ async def lifespan(app: FastAPI):
         logger.warning("DEEPSEEK_API_KEY 未配置，LLM 功能不可用")
     else:
         logger.info("DeepSeek API Key 已配置")
+    if not settings.admin_password:
+        logger.warning("ADMIN_PASSWORD 未配置，管理后台登录不受保护！请设置 ADMIN_PASSWORD 环境变量")
 
     # FunASR 模型预热（后台异步加载，不阻塞启动流程）
     try:
@@ -91,6 +144,22 @@ async def add_security_headers(request, call_next):
         response.headers[key] = value
     return response
 
+
+@app.middleware("http")
+async def rate_limit_middleware(request: Request, call_next):
+    """速率限制中间件（仅对 /chat/ 端点生效）。"""
+    allowed = await _rate_limiter.check(request)
+    if not allowed:
+        logger.warning("[RateLimit] 请求被拒绝: %s %s", request.method, request.url.path)
+        return Response(
+            content='{"reply": "请求过于频繁，请稍后再试。", "audio_url": null, "emotion": null}',
+            media_type="application/json",
+            status_code=429,
+            headers={"Retry-After": "60"},
+        )
+    return await call_next(request)
+
+
 # ── CORS ─────────────────────────────────────────────────
 app.add_middleware(
     CORSMiddleware,
@@ -109,6 +178,7 @@ app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
 app.include_router(health_router)
 app.include_router(chat_router)
 app.include_router(vrm_router)
+app.include_router(scenic_router)
 
 
 @app.get("/")
@@ -118,3 +188,21 @@ async def root():
     if index.exists():
         return FileResponse(str(index))
     return {"message": "A5 景区导览AI数字人服务运行中，请部署前端页面。"}
+
+
+@app.get("/dashboard")
+async def dashboard_page():
+    """返回数据大屏页面。"""
+    dashboard = Path(__file__).parent / "frontend" / "dashboard.html"
+    if dashboard.exists():
+        return FileResponse(str(dashboard))
+    return {"message": "dashboard.html 未找到，请确保前端文件已部署。"}
+
+
+@app.get("/admin")
+async def admin_page():
+    """返回管理后台页面。"""
+    admin = Path(__file__).parent / "frontend" / "admin.html"
+    if admin.exists():
+        return FileResponse(str(admin))
+    return {"message": "admin.html 未找到，请确保前端文件已部署。"}

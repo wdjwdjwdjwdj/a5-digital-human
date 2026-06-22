@@ -11,7 +11,7 @@ class TestDifyRAG:
         """测试 Dify 对话请求（无实际 API 密钥时降级）。"""
         from backend.services.dify_client import dify_client
 
-        result = await dify_client.chat("西湖门票多少钱")
+        result = await dify_client.chat("灵山胜境门票多少钱")
         # 预期：因无实际 API 密钥，返回 None
         assert result is None
 

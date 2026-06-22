@@ -1,0 +1,514 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>详情页原型 - A5景区导览</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f5f0e8;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #C73E3A 0%, #E85D5D 100%);
+      color: #fff;
+      padding: 30px;
+      border-radius: 20px;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 40px rgba(199,62,58,0.2);
+    }
+    
+    .header h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    
+    .header p {
+      font-size: 16px;
+      opacity: 0.9;
+    }
+    
+    .prototype-info {
+      background: #fff;
+      border-radius: 15px;
+      padding: 25px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    
+    .prototype-info h2 {
+      font-size: 20px;
+      color: #C73E3A;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .prototype-info ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    
+    .prototype-info li {
+      padding: 8px 0;
+      padding-left: 25px;
+      position: relative;
+    }
+    
+    .prototype-info li:before {
+      content: "▸";
+      position: absolute;
+      left: 0;
+      color: #C73E3A;
+      font-weight: bold;
+    }
+    
+    .states-section {
+      margin-bottom: 40px;
+    }
+    
+    .states-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .states-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 25px;
+    }
+    
+    .state-card {
+      background: #fff;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+      transition: transform 0.3s, box-shadow 0.3s;
+      cursor: pointer;
+    }
+    
+    .state-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+    }
+    
+    .state-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .state-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    
+    .state-badge {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .badge-default { background: #e3f2fd; color: #1976d2; }
+    .badge-hover { background: #fff3e0; color: #f57c00; }
+    .badge-click { background: #fce4ec; color: #c2185b; }
+    .badge-loading { background: #f3e5f5; color: #7b1fa2; }
+    .badge-empty { background: #fafafa; color: #616161; }
+    .badge-error { background: #ffebee; color: #d32f2f; }
+    
+    .state-demo {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 15px;
+      min-height: 250px;
+    }
+    
+    .demo-detail-hero {
+      height: 150px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 10px;
+      margin-bottom: 15px;
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .demo-detail-title {
+      position: absolute;
+      bottom: 15px;
+      left: 15px;
+      right: 15px;
+      color: #fff;
+      font-size: 20px;
+      font-weight: 700;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    
+    .demo-detail-info {
+      padding: 10px 0;
+    }
+    
+    .demo-info-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 8px 0;
+      border-bottom: 1px solid #f0f0f0;
+    }
+    
+    .demo-info-icon {
+      font-size: 18px;
+    }
+    
+    .demo-info-text {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .demo-gallery {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 10px;
+      margin-top: 15px;
+    }
+    
+    .demo-gallery-item {
+      aspect-ratio: 1;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      border-radius: 8px;
+    }
+    
+    .demo-section-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-top: 15px;
+      margin-bottom: 10px;
+    }
+    
+    .demo-description {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.8;
+    }
+    
+    .loading-demo {
+      text-align: center;
+      padding: 60px 20px;
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e0e0e0;
+      border-top-color: #C73E3A;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .loading-text {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .empty-demo {
+      text-align: center;
+      padding: 60px 20px;
+      color: #999;
+    }
+    
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+      opacity: 0.5;
+    }
+    
+    .empty-text {
+      font-size: 16px;
+      color: #999;
+      margin-bottom: 10px;
+    }
+    
+    .empty-hint {
+      font-size: 13px;
+      color: #bbb;
+    }
+    
+    .error-demo {
+      text-align: center;
+      padding: 60px 20px;
+      color: #d32f2f;
+    }
+    
+    .error-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+    }
+    
+    .error-text {
+      font-size: 16px;
+      color: #d32f2f;
+      margin-bottom: 10px;
+    }
+    
+    .error-hint {
+      font-size: 13px;
+      color: #999;
+      margin-bottom: 20px;
+    }
+    
+    .retry-btn {
+      padding: 10px 24px;
+      background: #C73E3A;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    .retry-btn:hover {
+      background: #a8322f;
+    }
+    
+    .state-description {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.6;
+    }
+    
+    .interaction-notes {
+      background: #fffde7;
+      border-left: 4px solid #ffc107;
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 30px;
+    }
+    
+    .notes-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f57c00;
+      margin-bottom: 10px;
+    }
+    
+    .notes-content {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.8;
+    }
+    
+    .notes-content p {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📄 详情页原型</h1>
+      <p>景点详情页 - 组件状态与交互流程</p>
+    </div>
+    
+    <div class="prototype-info">
+      <h2>原型说明</h2>
+      <ul>
+        <li>展示详情页的6种核心状态：默认、悬停、点击、加载中、空状态、错误状态</li>
+        <li>包含景点图片画廊、基本信息、详细描述等核心模块</li>
+        <li>标注了详细的交互说明和用户体验注意事项</li>
+        <li>采用 ardot 设计风格，视觉层次清晰，信息呈现完整</li>
+      </ul>
+    </div>
+    
+    <div class="states-section">
+      <div class="states-title">🎯 组件状态展示</div>
+      
+      <div class="states-grid">
+        <!-- 默认状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">默认状态</div>
+            <div class="state-badge badge-default">Default</div>
+          </div>
+          <div class="state-demo">
+            <div class="demo-detail-hero">
+              <div class="demo-detail-title">灵山大佛</div>
+            </div>
+            <div class="demo-detail-info">
+              <div class="demo-info-item">
+                <span class="demo-info-icon">📍</span>
+                <span class="demo-info-text">江苏省无锡市滨湖区灵山路1号</span>
+              </div>
+              <div class="demo-info-item">
+                <span class="demo-info-icon">⭐</span>
+                <span class="demo-info-text">4.8分 · 2356条评论</span>
+              </div>
+              <div class="demo-info-item">
+                <span class="demo-info-icon">🎫</span>
+                <span class="demo-info-text">¥210/人</span>
+              </div>
+            </div>
+            <div class="demo-section-title">景点介绍</div>
+            <div class="demo-description">
+              灵山大佛是无锡的标志性景点，坐落于太湖之滨，是闻名遐迩的佛教文化胜地...
+            </div>
+          </div>
+          <div class="state-description">
+            详情页默认展示状态，包含顶部大图、基本信息、评分、价格、详细介绍等内容。
+          </div>
+        </div>
+        
+        <!-- 悬停状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">悬停状态</div>
+            <div class="state-badge badge-hover">Hover</div>
+          </div>
+          <div class="state-demo">
+            <div class="demo-section-title">图片画廊</div>
+            <div class="demo-gallery">
+              <div class="demo-gallery-item" style="opacity: 0.8; transform: scale(1.05); box-shadow: 0 4px 15px rgba(0,0,0,0.2);"></div>
+              <div class="demo-gallery-item"></div>
+              <div class="demo-gallery-item"></div>
+            </div>
+            <div class="demo-section-title" style="margin-top: 20px;">操作按钮</div>
+            <div style="display: flex; gap: 10px;">
+              <button style="flex: 1; padding: 10px; background: #C73E3A; color: #fff; border: none; border-radius: 8px; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 4px 15px rgba(199,62,58,0.3)';" onmouseout="this.style.transform=''; this.style.boxShadow='';">收藏</button>
+              <button style="flex: 1; padding: 10px; background: #fff; color: #C73E3A; border: 2px solid #C73E3A; border-radius: 8px; cursor: pointer; transition: all 0.3s;" onmouseover="this.style.background='rgba(199,62,58,0.05)';" onmouseout="this.style.background='#fff';">分享</button>
+            </div>
+          </div>
+          <div class="state-description">
+            鼠标悬停在图片或按钮上时，元素会有缩放、阴影或背景色变化，提供视觉反馈。
+          </div>
+        </div>
+        
+        <!-- 点击状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">点击状态</div>
+            <div class="state-badge badge-click">Active</div>
+          </div>
+          <div class="state-demo">
+            <div class="demo-detail-hero" style="cursor: pointer;">
+              <div class="demo-detail-title">灵山大佛 🔍</div>
+            </div>
+            <div style="background: #fff; padding: 15px; border-radius: 10px; margin-top: 15px; text-align: center;">
+              <div style="font-size: 14px; color: #666; margin-bottom: 10px;">图片查看器已打开</div>
+              <div style="font-size: 48px;">🖼️</div>
+            </div>
+          </div>
+          <div class="state-description">
+            点击图片或按钮时，触发对应操作（打开图片查看器、收藏、分享等），提供即时反馈。
+          </div>
+        </div>
+        
+        <!-- 加载中状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">加载中状态</div>
+            <div class="state-badge badge-loading">Loading</div>
+          </div>
+          <div class="state-demo">
+            <div class="loading-demo">
+              <div class="spinner"></div>
+              <div class="loading-text">正在加载景点详情...</div>
+            </div>
+          </div>
+          <div class="state-description">
+            数据加载时显示旋转动画和提示文字，保持界面活跃感，避免用户等待焦虑。
+          </div>
+        </div>
+        
+        <!-- 空状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">空状态</div>
+            <div class="state-badge badge-empty">Empty</div>
+          </div>
+          <div class="state-demo">
+            <div class="empty-demo">
+              <div class="empty-icon">📭</div>
+              <div class="empty-text">暂无评论数据</div>
+              <div class="empty-hint">该景点还没有用户评论，快来发表第一条评论吧</div>
+            </div>
+          </div>
+          <div class="state-description">
+            当评论区为空时，显示友好提示图标和说明文字，引导用户进行互动。
+          </div>
+        </div>
+        
+        <!-- 错误状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">错误状态</div>
+            <div class="state-badge badge-error">Error</div>
+          </div>
+          <div class="state-demo">
+            <div class="error-demo">
+              <div class="error-icon">⚠️</div>
+              <div class="error-text">加载失败</div>
+              <div class="error-hint">网络连接异常，请检查网络后重试</div>
+              <button class="retry-btn">重新加载</button>
+            </div>
+          </div>
+          <div class="state-description">
+            数据加载失败时，显示错误图标、原因说明和重试按钮，帮助用户快速恢复。
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="interaction-notes">
+      <div class="notes-title">📝 交互说明注释</div>
+      <div class="notes-content">
+        <p><strong>1. 图片画廊交互流程：</strong></p>
+        <p>• 默认状态 → 显示景点缩略图网格</p>
+        <p>• 悬停状态 → 图片缩放、高亮显示</p>
+        <p>• 点击状态 → 打开全屏图片查看器，支持左右切换</p>
+        
+        <p><strong>2. 基本信息展示：</strong></p>
+        <p>• 地址、评分、价格等关键信息置顶显示</p>
+        <p>• 使用图标+文字的组合，提升信息识别效率</p>
+        <p>• 评分使用星级+数字双重展示，直观易懂</p>
+        
+        <p><strong>3. 操作按钮设计：</strong></p>
+        <p>• 主要操作（收藏、预订）使用主色调填充按钮</p>
+        <p>• 次要操作（分享、导航）使用描边按钮</p>
+        <p>• 按钮状态包含：默认、悬停、点击、禁用</p>
+        
+        <p><strong>4. 评论区交互：</strong></p>
+        <p>• 支持点赞、回复、查看全部评论</p>
+        <p>• 空状态时提供引导性文案和行动按钮</p>
+        <p>• 评论加载支持分页或无限滚动</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

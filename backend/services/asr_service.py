@@ -227,11 +227,28 @@ class ASRManager:
             logger.error("[ASR] FunASR 模型加载失败: %s", e, exc_info=True)
             return None
 
+    async def _run_sync(self, func, *args, **kwargs):
+        """在线程池中运行同步函数，带 30 秒超时防护。
+
+        Args:
+            func: 同步函数
+            *args: 传递给 func 的位置参数
+            **kwargs: 传递给 func 的关键字参数
+
+        Returns:
+            func 的返回值，超时或异常时抛出
+        """
+        return await asyncio.wait_for(
+            asyncio.to_thread(func, *args, **kwargs),
+            timeout=30.0,
+        )
+
     async def transcribe(self, audio_path: str) -> str | None:
         """使用 FunASR 转写音频文件。
 
         流程：VAD 修剪尾部静音 → FunASR 识别。
         VAD 不可用时直接走 FunASR。
+        所有同步阻塞操作通过 _run_sync 迁移到线程池，释放事件循环。
 
         Args:
             audio_path: 音频文件路径
@@ -239,22 +256,33 @@ class ASRManager:
         Returns:
             识别文本或 None
         """
-        model = self._load_model()
+        try:
+            model = await self._run_sync(self._load_model)
+        except asyncio.TimeoutError:
+            logger.error("[ASR] 模型加载超时")
+            return None
         if model is None:
             logger.warning("[ASR] FunASR 不可用，返回 None")
             return None
 
-        # VAD 修剪静音尾部，提升 ASR 效率
-        trimmed_path = self.vad.trim_trailing_silence(audio_path)
+        # VAD 修剪静音尾部（通过线程池避免阻塞事件循环）
+        try:
+            trimmed_path = await self._run_sync(self.vad.trim_trailing_silence, audio_path)
+        except asyncio.TimeoutError:
+            logger.warning("[ASR] VAD 修剪超时，使用原始音频")
+            trimmed_path = audio_path
         is_trimmed = trimmed_path != audio_path
 
         try:
-            result = await asyncio.to_thread(model.generate, input=trimmed_path)
+            result = await self._run_sync(model.generate, input=trimmed_path)
             text = result[0].get("text", "") if result else ""
             if text:
                 logger.info("[ASR] 识别成功: %s", text[:50])
                 return text
             logger.warning("[ASR] 识别结果为空")
+            return None
+        except asyncio.TimeoutError:
+            logger.error("[ASR] ASR 识别超时")
             return None
         except Exception as e:
             logger.error("[ASR] ASR 识别失败: %s", e, exc_info=True)

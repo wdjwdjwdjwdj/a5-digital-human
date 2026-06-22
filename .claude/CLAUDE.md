@@ -68,7 +68,7 @@ a5-digital-human/
 │   ├── vrm/                       # VRM 3D 模型文件 (.vrm)
 │   └── themes/                    # 主题配色 JSON
 │
-├── knowledge/                     # 景区知识库原始文档（杭州西湖）
+├── knowledge/                     # 景区知识库原始文档（无锡灵山胜境）
 │   ├── scenic_intro.md            # 景点介绍
 │   ├── ticket_info.md             # 票务信息
 │   ├── dining_guide.md            # 餐饮推荐

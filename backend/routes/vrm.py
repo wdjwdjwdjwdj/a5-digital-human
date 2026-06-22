@@ -1,10 +1,11 @@
 """VRM 3D 模型切换路由（无状态设计）。"""
 
 import logging
+import re
 from pathlib import Path
 
 from fastapi import APIRouter
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +18,18 @@ class ModelSwitchRequest(BaseModel):
     """模型切换请求体。"""
 
     path: str = Field(..., description="VRM 模型文件名（如 AliciaSolid.vrm）")
+
+    @field_validator("path")
+    @classmethod
+    def validate_model_path(cls, v: str) -> str:
+        """校验模型路径：只允许安全的文件名，防止路径遍历攻击。"""
+        v = v.strip()
+        if not v:
+            raise ValueError("模型路径不能为空")
+        # 只允许 字母/数字/下划线/点/短横线/空格 + .vrm 后缀
+        if not re.match(r"^[\w.\- ]+\.vrm$", v):
+            raise ValueError("非法的模型文件名，仅支持 .vrm 文件")
+        return v
 
 
 class ModelSwitchResponse(BaseModel):
@@ -40,9 +53,12 @@ async def switch_model(req: ModelSwitchRequest) -> ModelSwitchResponse:
     Returns:
         切换结果（success + 模型路径 + 消息）
     """
-    # 路径遍历防护：规范化路径后检查是否在允许目录内
-    model_path = (_MODEL_BASE / req.path).resolve()
-    if not str(model_path).startswith(str(_MODEL_BASE.resolve())):
+    # 路径遍历防护：使用 Path.resolve() 规范化路径后，
+    # 用 relative_to 验证是否在允许的基目录内
+    try:
+        model_path = (_MODEL_BASE / req.path).resolve()
+        model_path.relative_to(_MODEL_BASE.resolve())
+    except ValueError:
         logger.warning("[VRM] 路径遍历攻击拦截: %s", req.path)
         return ModelSwitchResponse(
             success=False,

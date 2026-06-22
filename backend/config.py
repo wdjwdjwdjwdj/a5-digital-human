@@ -42,8 +42,16 @@ class Settings(BaseSettings):
     cors_origin: str = "*"
     api_base_url: str = "http://localhost:8000"
 
+    # ===== 景区信息 =====
+    scenic_name: str = "灵山胜境"
+    scenic_guide_name: str = "灵灵"
+
     # ===== VRM 3D =====
     vrm_model_url: str = "frontend/static/vrm/AliciaSolid.vrm"
+
+    # ===== 多模态 =====
+    multimodal_api_key: str = ""  # 为空时禁用多模态图片识别
+    multimodal_model: str = "qwen-vl-plus"  # 通义千问VL 多模态模型
 
 
 settings = Settings()

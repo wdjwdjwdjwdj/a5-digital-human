@@ -8,9 +8,10 @@
 import logging
 from pathlib import Path
 
-from httpx import AsyncClient, HTTPError
+from httpx import HTTPError
 
 from backend.config import settings
+from backend.http_client import get_http_client
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +56,10 @@ class DifyClient:
             payload["conversation_id"] = conversation_id
 
         try:
-            async with AsyncClient() as client:
-                resp = await client.post(url, headers=headers, json=payload, timeout=_TIMEOUT_CHAT)
-                resp.raise_for_status()
-                return resp.json()
+            client = get_http_client()
+            resp = await client.post(url, headers=headers, json=payload, timeout=_TIMEOUT_CHAT)
+            resp.raise_for_status()
+            return resp.json()
         except HTTPError as e:
             logger.error("[DifyClient] 对话请求失败: %s", e)
             return None
@@ -80,13 +81,13 @@ class DifyClient:
             return None
 
         try:
-            async with AsyncClient() as client:
-                with fp.open("rb") as f:
-                    files = {"file": (fp.name, f, "application/octet-stream")}
-                    resp = await client.post(url, headers=headers, files=files, timeout=_TIMEOUT_UPLOAD)
-                    resp.raise_for_status()
-                    logger.info("[DifyClient] 文档上传成功: %s", fp.name)
-                    return resp.json()
+            client = get_http_client()
+            with fp.open("rb") as f:
+                files = {"file": (fp.name, f, "application/octet-stream")}
+                resp = await client.post(url, headers=headers, files=files, timeout=_TIMEOUT_UPLOAD)
+                resp.raise_for_status()
+                logger.info("[DifyClient] 文档上传成功: %s", fp.name)
+                return resp.json()
         except Exception as e:
             logger.error("[DifyClient] 文档上传失败 (%s): %s", file_path, e)
             return None

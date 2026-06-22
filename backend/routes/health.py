@@ -26,10 +26,19 @@ async def ping() -> dict:
 
 @router.get("/token-stats")
 async def token_stats() -> dict:
-    """Token 消耗统计（用于监控 API 费用）。"""
+    """Token 消耗统计（用于监控 API 费用）。
+
+    开发环境返回完整统计信息，生产环境仅返回消耗总量以防止信息泄露。
+    """
     try:
         stats = chatbot.get_token_stats()
-        return {"status": "ok", **stats}
+        result = {"status": "ok"}
+        if settings.env == "production":
+            # 生产环境只暴露总量，隐藏内部细节（缓存命中率、压缩次数等）
+            result["total_tokens"] = stats.get("total_tokens", 0)
+        else:
+            result.update(stats)
+        return result
     except Exception as e:
         logger.error("[Health] Token 统计失败: %s", e, exc_info=True)
         return {"status": "error", "detail": "获取 Token 统计失败"}

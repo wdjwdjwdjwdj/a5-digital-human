@@ -1,4 +1,4 @@
-"""准确率测试：使用西湖景区测试集验证问答准确率 ≥ 90%。
+"""准确率测试：使用灵山胜境测试集验证问答准确率 ≥ 90%。
 
 用法：
     python scripts/test_accuracy.py
@@ -9,7 +9,7 @@
 
 测试路径（优先级）：
     1. Local RAG 语义检索（主要路径）
-    2. Dify RAG / DeepSeek / 通义千问 LLM（次要路径，当无 API Key 时测试降级行为）
+    2. ChatBot 降级链路（次要路径，当无 API Key 时测试降级行为）
 """
 
 import logging
@@ -32,79 +32,48 @@ def _out(msg: str = "") -> None:
     sys.stdout.flush()
 
 
-# ── 测试集：50 题覆盖全部 5 个知识库文档 ──────────────
+# ── 测试集：20 对灵山 QA 覆盖全部 5 个知识库文档 ──────────
 # 每项：(question, [expected_keywords])
 # 回答中包含任一关键词即视为正确
 
 TEST_QUESTIONS: list[dict] = [
     # ════════════════════════════════════════════════
-    # 景点类（12题）— 文档: scenic_intro.md
+    # 景点类（6题）— 文档: scenic_intro.md
     # ════════════════════════════════════════════════
-    {"q": "西湖十景包括哪些？", "keywords": ["断桥残雪", "苏堤春晓", "雷峰夕照"], "source": "scenic_intro.md"},
-    {"q": "断桥残雪为什么叫断桥？", "keywords": ["雪", "桥面", "似断非断"], "source": "scenic_intro.md"},
-    {"q": "苏堤是谁建的？", "keywords": ["苏轼", "苏东坡"], "source": "scenic_intro.md"},
-    {"q": "雷峰塔跟什么民间传说有关？", "keywords": ["白蛇传", "白素贞", "法海"], "source": "scenic_intro.md"},
-    {"q": "三潭印月有几个石塔？", "keywords": ["三座", "三个", "3座"], "source": "scenic_intro.md"},
-    {"q": "花港观鱼在西湖哪个位置？", "keywords": ["苏堤", "南段"], "source": "scenic_intro.md"},
-    {"q": "曲院风荷与什么有关？", "keywords": ["荷花", "酿酒", "宫廷"], "source": "scenic_intro.md"},
-    {"q": "南屏晚钟是哪里发出的钟声？", "keywords": ["净慈寺", "南屏山"], "source": "scenic_intro.md"},
-    {"q": "西湖哪一年列入世界遗产？", "keywords": ["2011", "2011年"], "source": "scenic_intro.md"},
-    {"q": "孤山有什么景点？", "keywords": ["西泠印社", "平湖秋月", "楼外楼"], "source": "scenic_intro.md"},
-    {"q": "白堤是谁修建的？", "keywords": ["白居易"], "source": "scenic_intro.md"},
-    {"q": "苏堤有多少座桥？", "keywords": ["六", "6", "六桥"], "source": "scenic_intro.md"},
+    {"q": "灵山大佛有多高？", "keywords": ["88米", "88 米", "八十八米"], "source": "scenic_intro.md"},
+    {"q": "灵山大佛由什么材料建造？", "keywords": ["青铜", "铜"], "source": "scenic_intro.md"},
+    {"q": "灵山梵宫有什么特色？", "keywords": ["东方卢浮宫", "72000", "七万二"], "source": "scenic_intro.md"},
+    {"q": "九龙灌浴一天表演几次？",
+     "keywords": ["4次", "四次", "10:00", "11:30", "13:30", "15:00"],
+     "source": "scenic_intro.md"},
+    {"q": "五印坛城展示什么文化？", "keywords": ["藏传", "藏传佛教", "藏族"], "source": "scenic_intro.md"},
+    {"q": "祥符禅寺有什么历史？", "keywords": ["千年", "古刹", "唐代"], "source": "scenic_intro.md"},
     # ════════════════════════════════════════════════
-    # 票务类（10题）— 文档: ticket_info.md
+    # 票务类（5题）— 文档: ticket_info.md
     # ════════════════════════════════════════════════
-    {"q": "西湖大门票多少钱？", "keywords": ["免费", "不设大门票", "免费开放"], "source": "ticket_info.md"},
-    {"q": "雷峰塔门票多少钱？", "keywords": ["40", "40元"], "source": "ticket_info.md"},
-    {"q": "灵隐寺门票多少钱？", "keywords": ["75", "75元"], "source": "ticket_info.md"},
-    {"q": "三潭印月船票多少钱？", "keywords": ["55", "55元"], "source": "ticket_info.md"},
-    {"q": "岳王庙门票多少钱？", "keywords": ["25", "25元"], "source": "ticket_info.md"},
-    {"q": "老人去西湖有什么优惠？", "keywords": ["70", "免票", "半票"], "source": "ticket_info.md"},
-    {"q": "学生去西湖收费景点有优惠吗？", "keywords": ["半票", "半价", "学生证"], "source": "ticket_info.md"},
-    {"q": "雷峰塔开放时间？", "keywords": ["08:00", "17:30", "18:30"], "source": "ticket_info.md"},
-    {"q": "西湖哪些景点需要买票？", "keywords": ["雷峰塔", "岳王庙", "灵隐寺"], "source": "ticket_info.md"},
-    {"q": "西湖 WIFI 的 SSID 是什么？", "keywords": ["i-Xihu", "xihu"], "source": "ticket_info.md"},
+    {"q": "灵山门票多少钱？", "keywords": ["210元", "210 元", "成人票"], "source": "ticket_info.md"},
+    {"q": "灵山有学生票吗？", "keywords": ["半价", "半票", "105"], "source": "ticket_info.md"},
+    {"q": "灵山胜境开放时间？", "keywords": ["7:00", "17:30", "07:00", "17:30"], "source": "ticket_info.md"},
+    {"q": "灵山老人有优惠吗？", "keywords": ["70", "免票", "免费"], "source": "ticket_info.md"},
+    {"q": "灵山梵宫需要另外买票吗？", "keywords": ["含", "包含", "大门票", "不需"], "source": "ticket_info.md"},
     # ════════════════════════════════════════════════
-    # 交通/路线类（8题）— 文档: route_map.md
+    # 路线类（4题）— 文档: route_map.md
     # ════════════════════════════════════════════════
-    {"q": "去西湖坐地铁几号线？", "keywords": ["1号线", "1号"], "source": "route_map.md"},
-    {"q": "西湖可以骑自行车吗？", "keywords": ["可以", "共享单车", "骑行"], "source": "route_map.md"},
-    {"q": "西湖有观光巴士吗？", "keywords": ["环湖", "观光巴士", "招手即停"], "source": "route_map.md"},
-    {"q": "从杭州东站怎么去西湖？", "keywords": ["地铁", "1号线"], "source": "route_map.md"},
-    {"q": "骑行环湖需要多久？", "keywords": ["1.5", "1.5小时"], "source": "route_map.md"},
-    {"q": "西湖半日游推荐路线？", "keywords": ["断桥", "苏堤", "雷峰塔"], "source": "route_map.md"},
-    {"q": "西湖一日游需要多长时间？", "keywords": ["6", "8", "小时"], "source": "route_map.md"},
-    {"q": "西湖音乐喷泉几点开始？", "keywords": ["19:00", "20:00"], "source": "route_map.md"},
+    {"q": "推荐一条灵山游览路线？",
+     "keywords": ["南门", "九龙灌浴", "佛手广场", "祥符禅寺",
+                   "灵山大佛", "灵山梵宫", "五印坛城"],
+     "source": "route_map.md"},
+    {"q": "灵山适合玩多久？", "keywords": ["4", "5", "6", "小时", "半日", "一日"], "source": "route_map.md"},
+    {"q": "怎么去灵山胜境？", "keywords": ["公交", "88路", "89路", "乐游线", "自驾"], "source": "route_map.md"},
+    {"q": "灵山停车场怎么收费？", "keywords": ["15元", "15 元", "次"], "source": "route_map.md"},
     # ════════════════════════════════════════════════
-    # 餐饮类（8题）— 文档: dining_guide.md
+    # 餐饮/其他类（5题）— 文档: dining_guide.md / faq.md
     # ════════════════════════════════════════════════
-    {"q": "西湖附近有什么杭帮菜推荐？", "keywords": ["楼外楼", "西湖醋鱼", "东坡肉"], "source": "dining_guide.md"},
-    {"q": "楼外楼的特色菜是什么？", "keywords": ["西湖醋鱼", "东坡肉", "龙井虾仁"], "source": "dining_guide.md"},
-    {"q": "知味观有什么推荐小吃？", "keywords": ["片儿川", "猫耳朵", "小笼包"], "source": "dining_guide.md"},
-    {"q": "西湖龙井哪里买正宗？", "keywords": ["龙井村", "梅家坞", "湖畔居"], "source": "dining_guide.md"},
-    {"q": "西湖有什么特色小吃？", "keywords": ["定胜糕", "葱包烩", "荷花酥"], "source": "dining_guide.md"},
-    {"q": "杭州有什么素食推荐？", "keywords": ["净慈寺", "素斋"], "source": "dining_guide.md"},
-    {"q": "外婆家有什么推荐菜？", "keywords": ["茶香鸡", "糖醋里脊"], "source": "dining_guide.md"},
-    {"q": "河坊街有什么特色小吃？", "keywords": ["定胜糕", "葱包烩", "荷花酥"], "source": "dining_guide.md"},
-    # ════════════════════════════════════════════════
-    # 游览类（6题）— 文档: scenic_intro.md / route_map.md
-    # ════════════════════════════════════════════════
-    {"q": "哪个季节去西湖最美？", "keywords": ["四季", "各有特色"], "source": "route_map.md"},
-    {"q": "西湖适合带孩子去吗？", "keywords": ["适合", "花港观鱼", "亲子"], "source": "faq.md"},
-    {"q": "西湖用轮椅方便吗？", "keywords": ["方便", "平坦", "通行"], "source": "faq.md"},
-    {"q": "西湖文化传说有哪些？", "keywords": ["白蛇传", "苏东坡", "白居易"], "source": "faq.md"},
-    {"q": "西湖周边有什么博物馆？", "keywords": ["西湖博物馆", "丝绸博物馆"], "source": "scenic_intro.md"},
-    {"q": "西湖有寄存行李的地方吗？", "keywords": ["寄存", "游客中心"], "source": "faq.md"},
-    # ════════════════════════════════════════════════
-    # 其他/扩展类（6题）— 文档: 混合来源
-    # ════════════════════════════════════════════════
-    {"q": "西湖有多少平方公里？", "keywords": ["6.39", "6.39平方千米"], "source": "scenic_intro.md"},
-    {"q": "西湖三面环山对吗？", "keywords": ["对", "三面", "环山"], "source": "scenic_intro.md"},
-    {"q": "雷峰塔有多高？", "keywords": ["71", "71米"], "source": "scenic_intro.md"},
-    {"q": "西湖最适合穿什么鞋游览？", "keywords": ["舒适", "步行鞋", "运动鞋"], "source": "route_map.md"},
-    {"q": "杭州西湖博物馆在哪里？", "keywords": ["南山路", "钱王祠"], "source": "scenic_intro.md"},
-    {"q": "西湖有讲解服务吗？", "keywords": ["讲解", "导游"], "source": "faq.md"},
+    {"q": "灵山有什么吃的？", "keywords": ["素斋", "素食", "灵山精舍"], "source": "dining_guide.md"},
+    {"q": "灵山有住宿吗？", "keywords": ["灵山精舍", "拈花湾", "住宿"], "source": "faq.md"},
+    {"q": "九龙灌浴表演多长时间？", "keywords": ["15", "15分钟", "一刻钟"], "source": "scenic_intro.md"},
+    {"q": "天下第一掌在哪里？", "keywords": ["佛手广场"], "source": "scenic_intro.md"},
+    {"q": "灵山胜境在哪个城市？", "keywords": ["无锡", "江苏", "太湖"], "source": "faq.md"},
 ]
 
 

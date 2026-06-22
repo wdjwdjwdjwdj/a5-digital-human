@@ -26,6 +26,58 @@ def render_page() -> None:
     st.title("⚙️ 系统设置")
     st.markdown("管理数字人模型、语音配置与查看系统状态。")
 
+    # ── 景区基础配置 ─────────────────────────────────────
+    st.subheader("🏔️ 景区基础配置")
+
+    col_a, col_b = st.columns(2)
+    with col_a:
+        scenic_name = st.text_input(
+            "景区名称",
+            value=getattr(settings, "scenic_name", "灵山胜境"),
+            help="设置景区显示名称",
+        )
+    with col_b:
+        guide_name = st.text_input(
+            "AI 导游名称",
+            value=getattr(settings, "scenic_guide_name", "灵灵"),
+            help="设置 AI 数字人导游的称呼",
+        )
+
+    default_tts_options = list(_TTS_VOICES.keys())
+    default_tts_idx = 0
+    for i, v in enumerate(default_tts_options):
+        if v == settings.tts_voice:
+            default_tts_idx = i
+            break
+
+    default_tts = st.selectbox(
+        "默认 TTS 音色",
+        options=default_tts_options,
+        format_func=lambda x: _TTS_VOICES.get(x, x),
+        index=default_tts_idx,
+    )
+
+    if st.button("保存景区配置", type="primary"):
+        try:
+            resp = httpx.put(
+                f"{_API_BASE}/api/v1/scenic/config",
+                json={
+                    "scenic_name": scenic_name,
+                    "guide_name": guide_name,
+                    "default_tts_voice": default_tts,
+                },
+                timeout=10.0,
+            )
+            if resp.is_success:
+                st.success(f"✅ 景区配置已保存：{scenic_name} - {guide_name}")
+            else:
+                st.error("❌ 保存失败，请检查后端服务")
+        except Exception as e:
+            logger.error("[Settings] 保存景区配置失败: %s", e)
+            st.error("❌ 保存失败，无法连接到后端服务")
+
+    st.divider()
+
     # ── VRM 3D 模型选择 ───────────────────────────────────
     st.subheader("🎭 VRM 3D 模型")
     models = _list_vrm_models()

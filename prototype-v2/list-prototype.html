@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>列表页原型 - A5景区导览</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f5f0e8;
+      color: #1a1a1a;
+      line-height: 1.6;
+    }
+    
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .header {
+      background: linear-gradient(135deg, #2B5F75 0%, #4A8FA8 100%);
+      color: #fff;
+      padding: 30px;
+      border-radius: 20px;
+      margin-bottom: 30px;
+      box-shadow: 0 10px 40px rgba(43,95,117,0.2);
+    }
+    
+    .header h1 {
+      font-size: 32px;
+      font-weight: 700;
+      margin-bottom: 10px;
+    }
+    
+    .header p {
+      font-size: 16px;
+      opacity: 0.9;
+    }
+    
+    .prototype-info {
+      background: #fff;
+      border-radius: 15px;
+      padding: 25px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+    }
+    
+    .prototype-info h2 {
+      font-size: 20px;
+      color: #2B5F75;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .prototype-info ul {
+      list-style: none;
+      padding-left: 0;
+    }
+    
+    .prototype-info li {
+      padding: 8px 0;
+      padding-left: 25px;
+      position: relative;
+    }
+    
+    .prototype-info li:before {
+      content: "▸";
+      position: absolute;
+      left: 0;
+      color: #2B5F75;
+      font-weight: bold;
+    }
+    
+    .states-section {
+      margin-bottom: 40px;
+    }
+    
+    .states-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .states-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 25px;
+    }
+    
+    .state-card {
+      background: #fff;
+      border-radius: 15px;
+      padding: 25px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+      transition: transform 0.3s, box-shadow 0.3s;
+      cursor: pointer;
+    }
+    
+    .state-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 8px 30px rgba(0,0,0,0.1);
+    }
+    
+    .state-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 20px;
+      padding-bottom: 15px;
+      border-bottom: 2px solid #f0f0f0;
+    }
+    
+    .state-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1a1a1a;
+    }
+    
+    .state-badge {
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+    }
+    
+    .badge-default { background: #e3f2fd; color: #1976d2; }
+    .badge-hover { background: #fff3e0; color: #f57c00; }
+    .badge-click { background: #fce4ec; color: #c2185b; }
+    .badge-loading { background: #f3e5f5; color: #7b1fa2; }
+    .badge-empty { background: #fafafa; color: #616161; }
+    .badge-error { background: #ffebee; color: #d32f2f; }
+    
+    .state-demo {
+      background: #f8f9fa;
+      border-radius: 10px;
+      padding: 20px;
+      margin-bottom: 15px;
+      min-height: 200px;
+    }
+    
+    .demo-list-item {
+      background: #fff;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      transition: all 0.2s;
+    }
+    
+    .demo-list-item:hover {
+      border-color: #2B5F75;
+      background: rgba(43,95,117,0.02);
+      box-shadow: 0 4px 15px rgba(43,95,117,0.1);
+    }
+    
+    .demo-list-item:active {
+      background: rgba(43,95,117,0.05);
+      transform: scale(0.98);
+    }
+    
+    .item-image {
+      width: 60px;
+      height: 60px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      flex-shrink: 0;
+    }
+    
+    .item-content {
+      flex: 1;
+    }
+    
+    .item-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 5px;
+    }
+    
+    .item-desc {
+      font-size: 13px;
+      color: #666;
+    }
+    
+    .item-rating {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+      margin-top: 5px;
+    }
+    
+    .stars {
+      color: #ff9800;
+      font-size: 14px;
+    }
+    
+    .rating-text {
+      font-size: 12px;
+      color: #999;
+    }
+    
+    .loading-demo {
+      text-align: center;
+      padding: 40px 20px;
+    }
+    
+    .spinner {
+      width: 40px;
+      height: 40px;
+      border: 4px solid #e0e0e0;
+      border-top-color: #2B5F75;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 15px;
+    }
+    
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    
+    .loading-text {
+      font-size: 14px;
+      color: #666;
+    }
+    
+    .empty-demo {
+      text-align: center;
+      padding: 40px 20px;
+      color: #999;
+    }
+    
+    .empty-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+      opacity: 0.5;
+    }
+    
+    .empty-text {
+      font-size: 16px;
+      color: #999;
+      margin-bottom: 10px;
+    }
+    
+    .empty-hint {
+      font-size: 13px;
+      color: #bbb;
+    }
+    
+    .error-demo {
+      text-align: center;
+      padding: 40px 20px;
+      color: #d32f2f;
+    }
+    
+    .error-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+    }
+    
+    .error-text {
+      font-size: 16px;
+      color: #d32f2f;
+      margin-bottom: 10px;
+    }
+    
+    .error-hint {
+      font-size: 13px;
+      color: #999;
+      margin-bottom: 20px;
+    }
+    
+    .retry-btn {
+      padding: 10px 24px;
+      background: #2B5F75;
+      color: #fff;
+      border: none;
+      border-radius: 8px;
+      font-size: 14px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    .retry-btn:hover {
+      background: #1A3A4A;
+    }
+    
+    .state-description {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.6;
+    }
+    
+    .interaction-notes {
+      background: #fffde7;
+      border-left: 4px solid #ffc107;
+      padding: 20px;
+      border-radius: 10px;
+      margin-top: 30px;
+    }
+    
+    .notes-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f57c00;
+      margin-bottom: 10px;
+    }
+    
+    .notes-content {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.8;
+    }
+    
+    .notes-content p {
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="header">
+      <h1>📋 列表页原型</h1>
+      <p>景点列表页 - 组件状态与交互流程</p>
+    </div>
+    
+    <div class="prototype-info">
+      <h2>原型说明</h2>
+      <ul>
+        <li>展示列表页的6种核心状态：默认、悬停、点击、加载中、空状态、错误状态</li>
+        <li>包含所有交互组件的视觉呈现和状态变化</li>
+        <li>标注了详细的交互说明和用户体验注意事项</li>
+        <li>采用 ardot 设计风格，简洁现代，注重可用性</li>
+      </ul>
+    </div>
+    
+    <div class="states-section">
+      <div class="states-title">🎯 组件状态展示</div>
+      
+      <div class="states-grid">
+        <!-- 默认状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">默认状态</div>
+            <div class="state-badge badge-default">Default</div>
+          </div>
+          <div class="state-demo">
+            <div class="demo-list-item">
+              <div class="item-image"></div>
+              <div class="item-content">
+                <div class="item-title">灵山大佛</div>
+                <div class="item-desc">无锡灵山胜境风景区</div>
+                <div class="item-rating">
+                  <div class="stars">★★★★★</div>
+                  <div class="rating-text">4.8分</div>
+                </div>
+              </div>
+            </div>
+            <div class="demo-list-item">
+              <div class="item-image"></div>
+              <div class="item-content">
+                <div class="item-title">拈花湾</div>
+                <div class="item-desc">东方禅意度假小镇</div>
+                <div class="item-rating">
+                  <div class="stars">★★★★☆</div>
+                  <div class="rating-text">4.5分</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="state-description">
+            列表项默认展示状态，包含景点图片、名称、描述和评分等信息。布局清晰，信息层级分明。
+          </div>
+        </div>
+        
+        <!-- 悬停状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">悬停状态</div>
+            <div class="state-badge badge-hover">Hover</div>
+          </div>
+          <div class="state-demo">
+            <div class="demo-list-item" style="border-color: #2B5F75; background: rgba(43,95,117,0.02); box-shadow: 0 4px 15px rgba(43,95,117,0.1);">
+              <div class="item-image"></div>
+              <div class="item-content">
+                <div class="item-title">灵山大佛 ✨</div>
+                <div class="item-desc">无锡灵山胜境风景区</div>
+                <div class="item-rating">
+                  <div class="stars">★★★★★</div>
+                  <div class="rating-text">4.8分</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="state-description">
+            鼠标悬停时，列表项边框变色，背景微亮，添加阴影效果，提示用户可点击交互。
+          </div>
+        </div>
+        
+        <!-- 点击状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">点击状态</div>
+            <div class="state-badge badge-click">Active</div>
+          </div>
+          <div class="state-demo">
+            <div class="demo-list-item" style="background: rgba(43,95,117,0.05); transform: scale(0.98);">
+              <div class="item-image"></div>
+              <div class="item-content">
+                <div class="item-title">灵山大佛</div>
+                <div class="item-desc">进入详情页...</div>
+                <div class="item-rating">
+                  <div class="stars">★★★★★</div>
+                  <div class="rating-text">4.8分</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="state-description">
+            点击列表项时，背景加深，元素缩放反馈，随后跳转到对应景点详情页。
+          </div>
+        </div>
+        
+        <!-- 加载中状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">加载中状态</div>
+            <div class="state-badge badge-loading">Loading</div>
+          </div>
+          <div class="state-demo">
+            <div class="loading-demo">
+              <div class="spinner"></div>
+              <div class="loading-text">正在加载景点数据...</div>
+            </div>
+          </div>
+          <div class="state-description">
+            数据加载时显示旋转动画和提示文字，保持界面活跃感，避免用户等待焦虑。
+          </div>
+        </div>
+        
+        <!-- 空状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">空状态</div>
+            <div class="state-badge badge-empty">Empty</div>
+          </div>
+          <div class="state-demo">
+            <div class="empty-demo">
+              <div class="empty-icon">📭</div>
+              <div class="empty-text">暂无景点数据</div>
+              <div class="empty-hint">当前筛选条件下没有匹配的景点，请尝试调整筛选条件</div>
+            </div>
+          </div>
+          <div class="state-description">
+            当列表为空时，显示友好提示图标和说明文字，引导用户进行下一步操作。
+          </div>
+        </div>
+        
+        <!-- 错误状态 -->
+        <div class="state-card">
+          <div class="state-header">
+            <div class="state-name">错误状态</div>
+            <div class="state-badge badge-error">Error</div>
+          </div>
+          <div class="state-demo">
+            <div class="error-demo">
+              <div class="error-icon">⚠️</div>
+              <div class="error-text">加载失败</div>
+              <div class="error-hint">网络连接异常，请检查网络后重试</div>
+              <button class="retry-btn">重新加载</button>
+            </div>
+          </div>
+          <div class="state-description">
+            数据加载失败时，显示错误图标、原因说明和重试按钮，帮助用户快速恢复。
+          </div>
+        </div>
+      </div>
+    </div>
+    
+    <div class="interaction-notes">
+      <div class="notes-title">📝 交互说明注释</div>
+      <div class="notes-content">
+        <p><strong>1. 列表项交互流程：</strong></p>
+        <p>• 默认状态 → 鼠标悬停 → 视觉反馈（边框、阴影、背景）</p>
+        <p>• 悬停状态 → 鼠标点击 → 缩放动画 → 跳转到详情页</p>
+        <p>• 整个交互过程应有 200ms 的过渡动画，保证流畅性</p>
+        
+        <p><strong>2. 加载状态处理：</strong></p>
+        <p>• 首次加载显示骨架屏或加载动画</p>
+        <p>• 下拉刷新时显示顶部加载指示器</p>
+        <p>• 上拉加载更多时显示底部加载提示</p>
+        
+        <p><strong>3. 空状态设计原则：</strong></p>
+        <p>• 使用友好、易懂的图标和文字</p>
+        <p>• 提供明确的下一步操作指引</p>
+        <p>• 避免使用技术性术语或错误代码</p>
+        
+        <p><strong>4. 错误状态恢复机制：</strong></p>
+        <p>• 明确告知错误原因（网络、权限、数据不存在等）</p>
+        <p>• 提供可操作的恢复按钮（重试、返回、联系客服等）</p>
+        <p>• 记录错误日志，便于后续排查问题</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>

@@ -1,0 +1,12 @@
+﻿{
+  "version": "1.0",
+  "name": "A5-景区导览AI数字人 UI设计",
+  "pages": [
+    {
+      "id": "page1",
+      "name": "移动端首页",
+      "width": 390,
+      "height": 844
+    }
+  ]
+}

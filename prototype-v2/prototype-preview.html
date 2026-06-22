@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>A5-景区导览AI数字人 - 原型预览</title>
+  <style>
+    * { margin:0; padding:0; box-sizing:border-box; }
+    body {
+      font-family: "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    
+    .container {
+      max-width: 1400px;
+      margin:0 auto;
+    }
+    
+    h1 {
+      text-align: center;
+      color: #fff;
+      font-size: 36px;
+      margin-bottom: 10px;
+      text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    }
+    
+    .subtitle {
+      text-align: center;
+      color: rgba(255,255,255,0.9);
+      font-size: 16px;
+      margin-bottom: 40px;
+    }
+    
+    .section {
+      background: #fff;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      margin-bottom: 30px;
+    }
+    
+    .section-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 20px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    
+    .pages-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 30px;
+      margin-bottom: 20px;
+    }
+    
+    .page-card {
+      background: #fff;
+      border-radius: 20px;
+      padding: 30px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.15);
+      transition: transform 0.3s, box-shadow 0.3s;
+    }
+    
+    .page-card:hover {
+      transform: translateY(-5px);
+      box-shadow: 0 25px 70px rgba(0,0,0,0.2);
+    }
+    
+    .page-icon {
+      width: 80px;
+      height: 80px;
+      border-radius: 20px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      margin-bottom: 20px;
+    }
+    
+    .page-title {
+      font-size: 24px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 10px;
+    }
+    
+    .page-desc {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.6;
+      margin-bottom: 20px;
+    }
+    
+    .page-link {
+      display: inline-block;
+      padding: 12px 24px;
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      text-decoration: none;
+      border-radius: 10px;
+      font-size: 14px;
+      font-weight: 500;
+      transition: opacity 0.3s;
+    }
+    
+    .page-link:hover {
+      opacity: 0.9;
+    }
+    
+    .prototype-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 20px;
+    }
+    
+    .prototype-card {
+      border: 2px solid #e0e0e0;
+      border-radius: 15px;
+      padding: 20px;
+      text-align: center;
+      transition: border-color 0.3s, transform 0.3s;
+    }
+    
+    .prototype-card:hover {
+      border-color: #667eea;
+      transform: translateY(-3px);
+    }
+    
+    .prototype-icon {
+      font-size: 48px;
+      margin-bottom: 15px;
+    }
+    
+    .prototype-name {
+      font-size: 18px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 10px;
+    }
+    
+    .prototype-desc {
+      font-size: 13px;
+      color: #666;
+      line-height: 1.5;
+      margin-bottom: 15px;
+    }
+    
+    .prototype-link {
+      display: inline-block;
+      padding: 8px 20px;
+      background: #f5f5f5;
+      color: #667eea;
+      text-decoration: none;
+      border-radius: 8px;
+      font-size: 13px;
+      font-weight: 500;
+      transition: background 0.3s;
+    }
+    
+    .prototype-link:hover {
+      background: #e0e0e0;
+    }
+    
+    .bugs-list {
+      margin-top: 20px;
+    }
+    
+    .bug-item {
+      padding: 15px;
+      background: #f5f5f5;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      border-left: 4px solid #4caf50;
+    }
+    
+    .bug-item.warning {
+      border-left-color: #ff9800;
+    }
+    
+    .bug-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #1a1a1a;
+      margin-bottom: 5px;
+    }
+    
+    .bug-desc {
+      font-size: 14px;
+      color: #666;
+      line-height: 1.6;
+    }
+    
+    .status-badge {
+      display: inline-block;
+      padding: 5px 12px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 500;
+      margin-left: 10px;
+    }
+    
+    .status-completed {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
+    
+    .status-pending {
+      background: #fff3e0;
+      color: #f57c00;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>🎨 A5-景区导览AI数字人</h1>
+    <p class="subtitle">原型预览与设计规范</p>
+    
+    <!-- 原有页面原型 -->
+    <div class="section">
+      <div class="section-title">📱 原有页面原型</div>
+      <div class="pages-grid">
+        <div class="page-card">
+          <div class="page-icon">📱</div>
+          <div class="page-title">移动端原型</div>
+          <div class="page-desc">移动端交互原型，包含首页、搜索、地图、聊天、详情等核心页面。</div>
+          <a href="mobile-prototype.html" class="page-link" target="_blank">查看原型</a>
+        </div>
+        
+        <div class="page-card">
+          <div class="page-icon">📊</div>
+          <div class="page-title">数据大屏</div>
+          <div class="page-desc">数据可视化大屏，展示景区实时数据、游客分析、热门景点等。</div>
+          <a href="dashboard.html" class="page-link" target="_blank">查看原型</a>
+        </div>
+        
+        <div class="page-card">
+          <div class="page-icon">⚙️</div>
+          <div class="page-title">管理后台</div>
+          <div class="page-desc">管理后台界面，包含景点管理、数据统计、系统设置等功能。</div>
+          <a href="admin.html" class="page-link" target="_blank">查看原型</a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 新增设计原型 -->
+    <div class="section">
+      <div class="section-title">🎯 ardot 风格设计原型 <span class="status-badge status-completed">已完成</span></div>
+      <div class="prototype-grid">
+        <div class="prototype-card">
+          <div class="prototype-icon">📋</div>
+          <div class="prototype-name">列表页原型</div>
+          <div class="prototype-desc">景点列表、搜索筛选、排序分页等组件状态（默认、悬停、点击、加载中、空状态、错误状态）</div>
+          <a href="list-prototype.html" class="prototype-link" target="_blank">查看原型</a>
+        </div>
+        
+        <div class="prototype-card">
+          <div class="prototype-icon">📄</div>
+          <div class="prototype-name">详情页原型</div>
+          <div class="prototype-desc">景点详情、图片画廊、评论区等组件状态（默认、悬停、点击、加载中、空状态、错误状态）</div>
+          <a href="detail-prototype.html" class="prototype-link" target="_blank">查看原型</a>
+        </div>
+        
+        <div class="prototype-card">
+          <div class="prototype-icon">📝</div>
+          <div class="prototype-name">表单页原型</div>
+          <div class="prototype-desc">表单输入、验证提示、提交状态等组件状态（默认、聚焦、验证错误、验证成功、提交中、提交成功）</div>
+          <a href="form-prototype.html" class="prototype-link" target="_blank">查看原型</a>
+        </div>
+      </div>
+    </div>
+    
+    <!-- Bug 修复状态 -->
+    <div class="section">
+      <div class="section-title">✅ 代码审查结果</div>
+      <div class="bugs-list">
+        <div class="bug-item">
+          <div class="bug-title">✅ CSS 语法检查 <span class="status-badge status-completed">通过</span></div>
+          <div class="bug-desc">经过详细检查，所有 CSS 变量和 rgba() 函数使用正确，未发现问题。原有的 rgba(232, 232, 240, 1.0) 在 CSS 规范中是合法的（允许使用 1.0），但在某些浏览器中可能存在兼容性问题。建议统一使用 1 而非 1.0 以确保最佳兼容性。</div>
+        </div>
+        <div class="bug-item">
+          <div class="bug-title">✅ JavaScript 语法检查 <span class="status-badge status-completed">通过</span></div>
+          <div class="bug-desc">classList 等方法使用正确，未发现拼写错误。所有 JavaScript 代码语法正确，符合规范。</div>
+        </div>
+        <div class="bug-item warning">
+          <div class="bug-title">⚠️ 建议优化 <span class="status-badge status-pending">待优化</span></div>
+          <div class="bug-desc">建议添加更完善的错误处理和加载状态提示，提升用户体验。建议在移动端添加 viewport meta 标签优化（当前已有初步实现，可进一步完善）。</div>
+        </div>
+      </div>
+    </div>
+    
+    <!-- 设计规范说明 -->
+    <div class="section">
+      <div class="section-title">📐 设计规范说明</div>
+      <div style="font-size: 14px; color: #666; line-height: 1.8;">
+        <p><strong>设计风格：</strong>ardot 风格，简洁现代，注重可用性和用户体验</p>
+        <p><strong>色彩体系：</strong>主色调 #2B5F75（深蓝），辅助色 #C73E3A（红色），背景色 #F5F0E8（米白）</p>
+        <p><strong>字体规范：</strong>PingFang SC / Microsoft YaHei，标题 20-32px，正文 14-16px，辅助文字 12-13px</p>
+        <p><strong>圆角规范：</strong>小圆角 8-10px，中圆角 15-20px，大圆角 20px+</p>
+        <p><strong>阴影规范：</strong>轻度阴影 0 2px 12px rgba(0,0,0,0.06)，中度阴影 0 4px 20px rgba(0,0,0,0.1)，重度阴影 0 20px 60px rgba(0,0,0,0.15)</p>
+        <p><strong>组件状态：</strong>所有交互组件均包含默认、悬停、点击、禁用、加载、空状态、错误状态等完整状态</p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
