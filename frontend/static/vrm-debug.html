@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>VRM Debug</title>
+<style>
+* { margin:0; padding:0; }
+body { background:#333; display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; color:#fff; font-family:sans-serif; }
+#info { margin-bottom:10px; font-size:14px; }
+canvas { width:400px; height:500px; background:#555; border:2px solid #888; border-radius:8px; }
+#log { margin-top:10px; font-size:12px; color:#aaa; max-width:500px; text-align:center; }
+</style>
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/",
+    "@pixiv/three-vrm": "https://cdn.jsdelivr.net/npm/@pixiv/three-vrm@3.2.0/lib/three-vrm.module.min.js"
+  }
+}
+</script>
+</head>
+<body>
+<div id="info">VRM Debug - AliciaSolid_fixed.vrm</div>
+<canvas id="c" width="400" height="500"></canvas>
+<div id="log">Loading...</div>
+
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+import { VRMLoaderPlugin } from '@pixiv/three-vrm';
+
+const canvas = document.getElementById('c');
+const log = document.getElementById('log');
+const W = 400, H = 500;
+
+// Setup renderer with explicit pixel size
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: true });
+renderer.setSize(W, H, false); // false = don't update style
+renderer.setPixelRatio(1);
+log.textContent += ' | Renderer: ' + W + 'x' + H;
+
+// Camera
+const camera = new THREE.PerspectiveCamera(30, W / H, 0.1, 20);
+camera.position.set(0, 1.3, 1.5);
+camera.lookAt(0, 1.0, 0);
+
+// Scene
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x444444);
+
+// Lights
+const dirLight = new THREE.DirectionalLight(0xffffff, 1.0);
+dirLight.position.set(1, 2, 1);
+scene.add(dirLight);
+scene.add(new THREE.AmbientLight(0xffffff, 0.6));
+
+// Grid helper for reference
+const grid = new THREE.GridHelper(4, 8);
+scene.add(grid);
+
+// Load VRM
+const loader = new GLTFLoader();
+loader.register((plugin) => new VRMLoaderPlugin(plugin));
+
+let currentVrm = null;
+const clock = new THREE.Clock();
+
+loader.load('/static/vrm/AliciaSolid_fixed.vrm',
+  function(gltf) {
+    const vrm = gltf.userData.vrm;
+    currentVrm = vrm;
+    scene.add(vrm.scene);
+    vrm.scene.rotation.y = Math.PI;
+    
+    // Print VRM info
+    const box = new THREE.Box3().setFromObject(vrm.scene);
+    const size = box.getSize(new THREE.Vector3());
+    const center = box.getCenter(new THREE.Vector3());
+    log.textContent = 'LOADED! Size: ' + size.x.toFixed(2) + 'x' + size.y.toFixed(2) + 'x' + size.z.toFixed(2)
+      + ' | Center: ' + center.x.toFixed(2) + ',' + center.y.toFixed(2) + ',' + center.z.toFixed(2);
+    console.log('[VRM] Bounding box:', { size, center });
+    console.log('[VRM] Scene children:', vrm.scene.children.length);
+    
+    // Auto-fit camera to model
+    const maxDim = Math.max(size.x, size.y, size.z);
+    const fov = camera.fov * (Math.PI / 180);
+    let dist = maxDim / (2 * Math.tan(fov / 2));
+    dist *= 1.5;
+    camera.position.set(center.x, center.y, center.z + dist);
+    camera.lookAt(center.x, center.y, center.z);
+    camera.near = dist / 100;
+    camera.far = dist * 100;
+    camera.updateProjectionMatrix();
+    log.textContent += ' | Cam dist: ' + dist.toFixed(2);
+  },
+  function(xhr) {
+    if (xhr.total) log.textContent = 'Loading: ' + Math.round(xhr.loaded / xhr.total * 100) + '%';
+  },
+  function(err) {
+    log.textContent = 'ERROR: ' + (err.message || err);
+    console.error('[VRM] Load error:', err);
+  }
+);
+
+// Animation loop
+function animate() {
+  requestAnimationFrame(animate);
+  const delta = clock.getDelta();
+  if (currentVrm) currentVrm.update(delta);
+  renderer.render(scene, camera);
+}
+animate();
+</script>
+</body>
+</html>

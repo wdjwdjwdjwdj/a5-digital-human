@@ -119,9 +119,10 @@ app = FastAPI(
 _SELF = "'self'"
 _CSP = (
     f"default-src {_SELF}; "
-    f"script-src {_SELF} 'unsafe-inline' https://cdn.jsdelivr.net https://fonts.googleapis.com; "
-    f"style-src {_SELF} 'unsafe-inline' https://fonts.googleapis.com; "
-    f"img-src {_SELF} data: https:; "
+    f"script-src {_SELF} 'unsafe-inline' https://cdn.jsdelivr.net https://unpkg.com https://fonts.googleapis.com; "
+    f"style-src {_SELF} 'unsafe-inline' https://fonts.googleapis.com https://unpkg.com; "
+    f"img-src {_SELF} data: blob: https:; "
+    f"worker-src {_SELF} blob:; "
     f"font-src {_SELF} https://fonts.gstatic.com; "
     f"connect-src {_SELF} ws://localhost:* http://localhost:*; "
     f"frame-src 'none'; object-src 'none'; base-uri {_SELF}"

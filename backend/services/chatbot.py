@@ -134,8 +134,11 @@ class ChatBot:
         except Exception:
             logger.debug("[ChatBot] 本地 RAG 不可用（未安装依赖或模型加载失败）")
 
-        # 用 local_rag 结果覆盖 context（如果检索到内容）
-        effective_context = rag_context or context
+        # RAG 上下文叠加到原始 context 上（而非替换），保留情绪标签等格式指令
+        if rag_context and context:
+            effective_context = f"{rag_context}\n\n{context}"
+        else:
+            effective_context = rag_context or context
 
         # 阶段 2：原有 DeepSeek → 通义千问逻辑（per-session 降级判断 + 自动恢复探测）
         session_fails = self._session_failures.get(session_id, 0)
@@ -605,7 +608,11 @@ class ChatBot:
         except Exception:
             logger.debug("[ChatBot] 流式本地 RAG 不可用")
 
-        effective_context = rag_context or context
+        # RAG 上下文叠加到原始 context 上（而非替换），保留情绪标签等格式指令
+        if rag_context and context:
+            effective_context = f"{rag_context}\n\n{context}"
+        else:
+            effective_context = rag_context or context
 
         # ── DeepSeek 流式 ─────────────────────────────────
         full_reply: list[str] = []

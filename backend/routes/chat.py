@@ -98,7 +98,8 @@ def _save_audio(audio_data: bytes | None) -> str | None:
     if not audio_data:
         return None
     try:
-        static_audio_dir = Path(__file__).parent.parent / "frontend" / "static" / "audio"
+        # 用 resolve() 确保无论 CWD 在哪都指向正确的绝对路径
+        static_audio_dir = Path(__file__).resolve().parent.parent.parent / "frontend" / "static" / "audio"
         static_audio_dir.mkdir(parents=True, exist_ok=True)
         audio_filename = f"{uuid.uuid4().hex}.wav"
         audio_path = static_audio_dir / audio_filename
