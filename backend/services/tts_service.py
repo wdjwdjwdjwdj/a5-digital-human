@@ -249,7 +249,7 @@ class RealtimeTTSManager:
             import numpy as np
             from scipy.io.wavfile import write as write_wav
 
-            generator = pipeline(text, voice="af_heart")
+            generator = pipeline(text, voice="zf_xiaobei")
             audio_chunks: list[np.ndarray] = []
             for audio_array, _ in generator:
                 audio_chunks.append(audio_array)
@@ -260,10 +260,12 @@ class RealtimeTTSManager:
 
             full_audio = np.concatenate(audio_chunks)
 
+            # 转为 int16 PCM 以兼容所有浏览器
+            audio_int16 = (full_audio * 32767).astype(np.int16)
             with NamedTemporaryFile(suffix=".wav", delete=False) as _tmp:
                 _tmp.close()
                 tmp_path = _tmp.name
-            write_wav(tmp_path, 24000, full_audio.astype(np.float32))
+            write_wav(tmp_path, 24000, audio_int16)
             audio_bytes = Path(tmp_path).read_bytes()
             Path(tmp_path).unlink(missing_ok=True)
             logger.info("[TTS] Kokoro 合成成功，大小=%d 字节", len(audio_bytes))

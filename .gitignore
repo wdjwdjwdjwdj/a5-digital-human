@@ -14,3 +14,10 @@ ui-design.pen
 PROTOTYPE_V2_MIGRATION.md
 prototype-v2/
 a5-admin-design/
+.temp/
+.workbuddy/
+server_*.log
+BUG_FIX_*.md
+compliance_report.md
+digital-human-ui-research.md
+sensenova_test.json

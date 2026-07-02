@@ -27,12 +27,17 @@ _repo = ScenicRepository(_db_path)
 def _check_admin_token(request: Request) -> None:
     """校验管理后台鉴权 token。
 
+    当 settings.admin_password 为空（未配置）时跳过鉴权。
+    配置密码后，X-Admin-Token 必须匹配。
+
     Args:
         request: FastAPI 请求对象
 
     Raises:
         HTTPException: token 无效或缺失时返回 401
     """
+    if not settings.admin_password:
+        return  # 未配置密码时不校验
     token = request.headers.get("X-Admin-Token", "")
     if not token or token != settings.admin_password:
         raise HTTPException(status_code=401, detail="Unauthorized: 无效的管理员令牌")
@@ -143,6 +148,18 @@ async def get_stats() -> dict:
         return _response(False, error=str(e))
 
 
+@router.get("/spot-stats")
+async def get_spot_stats() -> dict:
+    """获取当日各景点统计数据（按天缓存，所有页面共享一致数据）。"""
+    try:
+        await _ensure_db()
+        spot_stats = await _repo.get_spot_daily_stats()
+        return _response(True, spot_stats)
+    except Exception as e:
+        logger.error("[ScenicRoute] GET /spot-stats 失败: %s", traceback.format_exc())
+        return _response(False, error=str(e))
+
+
 # ── 配置管理 ─────────────────────────────────────────────
 
 _CONFIG_DEFAULTS: dict[str, str] = {
@@ -176,6 +193,7 @@ async def update_config(data: dict) -> dict:
     只更新提供的字段，未提供的保留原值。
     """
     try:
+        await _ensure_db()
         current = await _repo.get_config()
         merged = dict(current)
         for key in _CONFIG_DEFAULTS:

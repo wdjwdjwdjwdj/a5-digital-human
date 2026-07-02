@@ -45,22 +45,27 @@ class ChatRepository:
         if self._tables_ensured:
             return
         try:
-            with self._lock, sqlite3.connect(str(self._db_path)) as conn:
+            with self._lock:
                 if self._tables_ensured:  # 双重检查避免竞态
                     return
-                conn.execute("PRAGMA journal_mode=WAL")
-                conn.execute("""
-                    CREATE TABLE IF NOT EXISTS conversations (
-                        id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        query TEXT NOT NULL,
-                        reply TEXT NOT NULL,
-                        provider TEXT DEFAULT 'deepseek',
-                        satisfaction INTEGER DEFAULT NULL,
-                        session_id TEXT DEFAULT 'default',
-                        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-                    )
-                """)
-                self._tables_ensured = True
+                conn = sqlite3.connect(str(self._db_path))
+                try:
+                    conn.execute("PRAGMA journal_mode=WAL")
+                    conn.execute("""
+                        CREATE TABLE IF NOT EXISTS conversations (
+                            id INTEGER PRIMARY KEY AUTOINCREMENT,
+                            query TEXT NOT NULL,
+                            reply TEXT NOT NULL,
+                            provider TEXT DEFAULT 'deepseek',
+                            satisfaction INTEGER DEFAULT NULL,
+                            session_id TEXT DEFAULT 'default',
+                            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                        )
+                    """)
+                    conn.commit()
+                    self._tables_ensured = True
+                finally:
+                    conn.close()
         except sqlite3.Error as e:
             logger.error("创建 conversations 表失败: %s", e)
 
@@ -106,14 +111,19 @@ class ChatRepository:
         satisfaction: int | None,
     ) -> int | None:
         try:
-            with self._lock, sqlite3.connect(str(self._db_path)) as conn:
-                cursor = conn.execute(
-                    "INSERT INTO conversations "
-                    "(query, reply, provider, session_id, satisfaction) "
-                    "VALUES (?, ?, ?, ?, ?)",
-                    (query, reply, provider, session_id, satisfaction),
-                )
-                record_id = cursor.lastrowid
+            with self._lock:
+                conn = sqlite3.connect(str(self._db_path))
+                try:
+                    cursor = conn.execute(
+                        "INSERT INTO conversations "
+                        "(query, reply, provider, session_id, satisfaction) "
+                        "VALUES (?, ?, ?, ?, ?)",
+                        (query, reply, provider, session_id, satisfaction),
+                    )
+                    record_id = cursor.lastrowid
+                    conn.commit()
+                finally:
+                    conn.close()
             logger.info("[ChatRepo] 对话已保存: id=%s, satisfaction=%s", record_id, satisfaction)
             return record_id
         except sqlite3.Error as e:
@@ -132,7 +142,8 @@ class ChatRepository:
 
     def _sync_get_history(self, session_id: str, limit: int) -> list[dict]:
         try:
-            with sqlite3.connect(str(self._db_path)) as conn:
+            conn = sqlite3.connect(str(self._db_path))
+            try:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.execute(
                     "SELECT query, reply, provider, created_at FROM conversations "
@@ -141,6 +152,8 @@ class ChatRepository:
                 )
                 rows = [dict(row) for row in cursor.fetchall()]
                 return rows
+            finally:
+                conn.close()
         except sqlite3.Error as e:
             logger.error("[ChatRepo] 查询历史失败: %s", e)
             return []
@@ -157,7 +170,8 @@ class ChatRepository:
 
     def _sync_get_overall_sentiment(self) -> dict[str, int]:
         try:
-            with sqlite3.connect(str(self._db_path)) as conn:
+            conn = sqlite3.connect(str(self._db_path))
+            try:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
                 cursor.execute("""
@@ -176,6 +190,8 @@ class ChatRepository:
                         "negative": row["negative"] or 0,
                     }
                 return {"positive": 0, "neutral": 0, "negative": 0}
+            finally:
+                conn.close()
         except sqlite3.Error as e:
             logger.error("[ChatRepo] 查询情感分布失败: %s", e)
             return {"positive": 0, "neutral": 0, "negative": 0}
@@ -192,7 +208,8 @@ class ChatRepository:
 
     def _sync_get_sentiment_trend(self, days: int) -> list[dict]:
         try:
-            with sqlite3.connect(str(self._db_path)) as conn:
+            conn = sqlite3.connect(str(self._db_path))
+            try:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
                 start_date = (datetime.now() - timedelta(days=days - 1)).strftime("%Y-%m-%d")
@@ -220,6 +237,8 @@ class ChatRepository:
                     else:
                         result.append({"date": day, "total": 0, "positive": 0, "neutral": 0, "negative": 0})
                 return result
+            finally:
+                conn.close()
         except sqlite3.Error as e:
             logger.error("[ChatRepo] 查询情感趋势失败: %s", e)
             return []
@@ -236,7 +255,8 @@ class ChatRepository:
 
     def _sync_get_hot_topics(self, limit: int) -> list[dict]:
         try:
-            with sqlite3.connect(str(self._db_path)) as conn:
+            conn = sqlite3.connect(str(self._db_path))
+            try:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
                 cursor.execute(
@@ -251,6 +271,8 @@ class ChatRepository:
                     (limit,),
                 )
                 return [dict(row) for row in cursor.fetchall()]
+            finally:
+                conn.close()
         except sqlite3.Error as e:
             logger.error("[ChatRepo] 查询热门话题失败: %s", e)
             return []
@@ -267,7 +289,8 @@ class ChatRepository:
 
     def _sync_get_service_suggestions(self, limit: int) -> list[dict]:
         try:
-            with sqlite3.connect(str(self._db_path)) as conn:
+            conn = sqlite3.connect(str(self._db_path))
+            try:
                 conn.row_factory = sqlite3.Row
                 cursor = conn.cursor()
                 cursor.execute(
@@ -290,6 +313,8 @@ class ChatRepository:
                         f"游客对「{r['query'][:30]}」问题存在较多消极反馈，建议完善相关知识库内容或优化回答方式"
                     )
                 return rows
+            finally:
+                conn.close()
         except sqlite3.Error as e:
             logger.error("[ChatRepo] 查询服务建议失败: %s", e)
             return []

@@ -56,11 +56,21 @@ class ChatBot:
         self.fallback_model = settings.fallback_llm_model
         self.fallback_api_key = settings.fallback_llm_api_key
         self._using_fallback = False
+        # SenseNova 客户端（provider=sensenova 时使用）
+        self._sensenova = None
+        if self.primary_provider == "sensenova":
+            from backend.services.sensenova import sensenova as _sn
+
+            self._sensenova = _sn
+            self.model = settings.sensenova_model
+            logger.info("[ChatBot] 使用 SenseNova 作为主 LLM (model=%s)", self.model)
         # per-session 失败计数（避免多用户并发互相干扰）
         self._session_failures: dict[str, int] = {}
         # per-session 对话历史（session_id → messages list）
         self._session_history: dict[str, list[dict]] = {}
         self._max_history: int = 10  # 每个会话保留最近 10 轮
+        # per-session Dify conversation_id 映射（保持多轮对话上下文）
+        self._dify_conv_ids: dict[str, str] = {}
         # ── Token 节省基础设施 ──
         self._cache: TTLCache[str, str] = TTLCache(maxsize=1024, ttl=1800)  # LRU + TTL 问答缓存（30分钟）
         # 压缩摘要存储 {session_id: "摘要文本"}
@@ -93,6 +103,7 @@ class ChatBot:
         cached = self._check_cache(query)
         if cached:
             logger.info("[ChatBot] 缓存命中: %s", query[:50])
+            self._add_history(session_id, query, cached)
             return cached
 
         # ── Token 节省：历史自动压缩 ────────────────────────
@@ -153,6 +164,10 @@ class ChatBot:
 
         # ── Token 节省：自适应 max_tokens ──────────────────
         adaptive_max_tokens = _SHORT_MAX_TOKENS if len(query) <= _SHORT_QUERY_LENGTH else _LONG_MAX_TOKENS
+
+        # ── 提供商路由 ─────────────────────────────────────
+        if self.primary_provider == "sensenova":
+            return await self._chat_sensenova(query, effective_context, session_id, adaptive_max_tokens)
 
         try:
             client = self._create_client(self.primary_api_key, self.primary_base_url)
@@ -291,9 +306,14 @@ class ChatBot:
         try:
             from backend.services.dify_client import dify_client as dc
 
-            result = await dc.chat(query=query, user=session_id)
+            # 传入 Dify conversation_id 以保持多轮对话上下文
+            conv_id = self._dify_conv_ids.get(session_id)
+            result = await dc.chat(query=query, user=session_id, conversation_id=conv_id)
             if result and "answer" in result:
                 answer = result["answer"].strip()
+                # 缓存 Dify 返回的 conversation_id 用于后续多轮对话
+                if result.get("conversation_id"):
+                    self._dify_conv_ids[session_id] = result["conversation_id"]
                 if answer:
                     self._add_history(session_id, query, answer)
                     logger.info("[ChatBot] Dify 回答成功")
@@ -365,6 +385,137 @@ class ChatBot:
             self._using_fallback = True
             logger.error("[ChatBot] 通义千问也失败: %s", e, exc_info=True)
             return None
+
+    # ── SenseNova 专用方法 ──────────────────────────────
+
+    async def _chat_sensenova(
+        self,
+        query: str,
+        context: str | None = None,
+        session_id: str = "default",
+        max_tokens: int = 512,
+    ) -> str | None:
+        """使用 SenseNova API 生成回答（5 秒超时 + 响应验证）。
+
+        Args:
+            query: 用户输入
+            context: 可选的系统上下文
+            session_id: 会话 ID
+            max_tokens: 最大输出 Token 数（会被强制提升以满足推理模型需求）
+
+        Returns:
+            回答文本，超时或验证失败时返回 None
+
+        Note:
+            sensenova-6.7-flash-lite 是推理模型（CoT），
+            reasoning tokens + answer tokens 都在 max_tokens 限制内，
+            因此需要比普通模型更高的 max_tokens 下限。
+        """
+        if not self._sensenova:
+            logger.error("[ChatBot] SenseNova 客户端未初始化")
+            return None
+
+        # 推理模型 CoT + 回答空间，系统提示词已限制简洁回答
+        # 注意：sensenova-6.7-flash-lite 是推理模型，需要足够大的 max_tokens
+        # 最小值 1024，否则回答可能被截断导致 content 为 null
+        _SENSENOVA_MIN_TOKENS = 1024
+        effective_max_tokens = max(max_tokens, _SENSENOVA_MIN_TOKENS)
+
+        messages = self._build_messages(query, context, session_id)
+
+        resp = await self._sensenova.chat(
+            messages,
+            temperature=0.7,
+            max_tokens=effective_max_tokens,
+        )
+
+        # ── 响应验证 ──────────────────────────────────
+        if not resp.is_valid:
+            logger.warning(
+                "[ChatBot] SenseNova 响应无效 (延迟=%.0fms, tokens=%d)",
+                resp.latency_ms,
+                resp.total_tokens,
+            )
+            # 超时返回友好提示
+            if resp.latency_ms >= 8000:
+                return None  # 上层处理为降级
+            return None
+
+        # ── 成功路径 ──────────────────────────────────
+        self._session_failures[session_id] = 0
+        self._using_fallback = False
+        self._add_history(session_id, query, resp.content)
+        self._add_to_cache(query, resp.content)
+        self._token_usage[session_id] = self._token_usage.get(session_id, 0) + resp.total_tokens
+        logger.info(
+            "[ChatBot] SenseNova 回答成功 (延迟=%.0fms, tokens=%d, session累计=%d)",
+            resp.latency_ms,
+            resp.total_tokens,
+            self._token_usage[session_id],
+        )
+        return resp.content
+
+    async def _chat_stream_sensenova(
+        self,
+        query: str,
+        context: str | None = None,
+        session_id: str = "default",
+        max_tokens: int = 512,
+    ) -> AsyncGenerator[str, None]:
+        """使用 SenseNova API 流式生成回答。
+
+        Args:
+            query: 用户输入
+            context: 可选的系统上下文
+            session_id: 会话 ID
+            max_tokens: 最大输出 Token 数（会被强制提升以满足推理模型需求）
+
+        Yields:
+            文本 token 片段
+        """
+        if not self._sensenova:
+            logger.error("[ChatBot] SenseNova 客户端未初始化，流式不可用")
+            return
+
+        # 推理模型 CoT + 回答空间，系统提示词已限制简洁回答
+        # 注意：sensenova-6.7-flash-lite 是推理模型，需要足够大的 max_tokens
+        # 最小值 1024，否则回答可能被截断导致 content 为 null
+        _SENSENOVA_MIN_TOKENS = 1024
+        effective_max_tokens = max(max_tokens, _SENSENOVA_MIN_TOKENS)
+
+        messages = self._build_messages(query, context, session_id)
+        full_reply: list[str] = []
+
+        try:
+            async for token in self._sensenova.chat_stream(
+                messages,
+                temperature=0.7,
+                max_tokens=effective_max_tokens,
+            ):
+                full_reply.append(token)
+                yield token
+
+            reply_text = "".join(full_reply)
+            if reply_text.strip():
+                self._session_failures[session_id] = 0
+                self._using_fallback = False
+                self._add_history(session_id, query, reply_text)
+                self._add_to_cache(query, reply_text)
+                token_est = max(len(reply_text) // 2, 1)
+                self._token_usage[session_id] = self._token_usage.get(session_id, 0) + token_est
+                logger.info(
+                    "[ChatBot] SenseNova 流式成功 (约 %d tokens)",
+                    token_est,
+                )
+            else:
+                logger.warning("[ChatBot] SenseNova 流式返回空回答")
+
+        except Exception as e:
+            logger.error("[ChatBot] SenseNova 流式异常: %s", e, exc_info=True)
+            # 已有部分内容就不降级了
+            partial = "".join(full_reply)
+            if partial.strip():
+                self._add_history(session_id, query, partial)
 
     def _build_messages(self, query: str, context: str | None = None, session_id: str = "default") -> list[dict]:
         """构建消息数组（含多轮历史 + 可选摘要）。
@@ -614,6 +765,12 @@ class ChatBot:
         else:
             effective_context = rag_context or context
 
+        # ── 提供商路由：SenseNova 流式 ──────────────────
+        if self.primary_provider == "sensenova":
+            async for token in self._chat_stream_sensenova(query, effective_context, session_id, adaptive_max_tokens):
+                yield token
+            return
+
         # ── DeepSeek 流式 ─────────────────────────────────
         full_reply: list[str] = []
         last_usage = None
@@ -672,7 +829,7 @@ class ChatBot:
                 partial = "".join(full_reply)
                 if partial.strip():
                     self._add_history(session_id, query, partial)
-                    self._add_to_cache(query, partial)
+                    # 不写入缓存：部分回答不完整，不应被复用
                 return
 
             # 无任何 token 时尝试降级

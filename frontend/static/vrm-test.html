@@ -52,6 +52,8 @@ scene.add(new THREE.AmbientLight(0xffffff, 0.4));
 const loader = new GLTFLoader();
 loader.register((parser) => new VRMLoaderPlugin(parser));
 
+let currentVrm = null;
+
 log('Loading VRM model...');
 try {
   const gltf = await loader.loadAsync('/static/vrm/AliciaSolid.vrm');
@@ -60,6 +62,7 @@ try {
   const vrm = gltf.userData.vrm;
   if (vrm) {
     log('VRM object found', 'ok');
+    currentVrm = vrm;
     scene.add(vrm.scene);
     vrm.scene.rotation.y = Math.PI;
     if (vrm.humanoid) log('Humanoid bones: ' + Object.keys(vrm.humanoid.humanBones).length, 'ok');
@@ -91,7 +94,7 @@ const clock = new THREE.Clock();
 function animate() {
   requestAnimationFrame(animate);
   const delta = clock.getDelta();
-  scene.traverse(obj => { if (obj.userData?.vrm) obj.userData.vrm.update(delta); });
+  if (currentVrm) currentVrm.update(delta);
   renderer.render(scene, camera);
 }
 animate();

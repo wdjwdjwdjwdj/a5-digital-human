@@ -185,6 +185,109 @@ git add -A && git commit -m "type(scope): description" && git push
 
 ---
 
+---
+
+## 关键数据流
+
+### 1. 文字对话 /chat/message
+
+```
+用户输入 → Pydantic 校验(query, session_id) → chatbot.chat()
+  → _check_cache 命中? → 直接返回缓存
+  → _auto_compress() 压缩旧历史
+  → Dify RAG (dify_client.py) → 失败降级
+  → Local RAG 检索 (local_rag.py, TF-IDF cosine)
+  → DeepSeek API / 通义千问降级 (OpenAI 兼容接口)
+  → _strip_emotion_tag() 剥离 [情绪: xxx]
+  → TTS 合成 (tts_manager.synthesize) → 存为 WAV 返回 /static/audio/ URL
+  → chat_repo.save_conversation() 持久化
+→ 返回 {reply, audio_url, emotion}
+```
+
+### 2. 语音对话 /chat/voice
+
+```
+录音上传 → MIME & 文件大小校验(10MB)
+  → 前端已有 ASR 文本? → 直接走 LLM
+  → 服务端 ASR: VAD 静音修剪 → FunASR paraformer-zh → 文本
+  → (以下同文字对话链路)
+  → 额外返回 asr_text 给前端
+```
+
+### 3. SSE 流式 /chat/stream-tts (LLM→TTS 管道)
+
+```
+用户 query → chatbot.chat_stream() 逐 token 产出
+  → 累积成句 (按 。！？\n 切分, ≥10 字)
+  → 每句发送 sentence SSE event
+  → 同时调用 tts_manager.stream_synthesize() → audio SSE event
+  → 30s 总超时熔断, 5s 首 token 超时
+  → 处理完 buffer 后发送 done event
+```
+
+### 4. 多模态图片 /chat/multimodal
+
+```
+base64 图片 → 后端校验: 大小 ≤4MB, 魔数校验(PNG/JPG/GIF/WebP)
+  → 通义千问VL API (qwen-vl-plus)
+  → TTS 合成 → 返回 {reply, audio_url, emotion}
+  → multimodal_api_key 为空时走降级提示
+```
+
+---
+
+## 架构模式
+
+| 模式 | 实现位置 | 说明 |
+|------|---------|------|
+| **Repository** | `repository/chat_repo.py`, `scenic_repo.py` | SQLite CRUD 封装. 所有 public 方法 async, 内部 `asyncio.to_thread` 迁移同步 sqlite3 到线程池. `threading.Lock` 防并发写. WAL 模式 |
+| **Service Singleton** | `chatbot.py`, `tts_service.py`, `asr_service.py`, `dify_client.py` | 模块级 `xxx = Xxx()` 单例, route 层直接 import 使用 |
+| **三级降级链** | 每个 service 内部实现 | 主链路失败→次级→兜底. 见下方降级方案表 |
+| **内存滑动窗口限流** | `main.py _RateLimiter` | 按 IP 计数, 60次/分钟, 仅作用于 /chat/ 前缀 |
+| **安全响应头中间件** | `main.py add_security_headers` | CSP / XFO / HSTS / Permissions-Policy, 全局生效 |
+| **LLM API 降级探针** | `chatbot.py` | per-session 失败计数, 连续 3 次失败切降级, 每 5 次请求探测 1 次主链路是否恢复 |
+
+---
+
+## 前端 JS 架构
+
+- **无框架** — 原生 HTML/CSS/JS, 无 Vue/React 依赖
+- **ESM importmap** — Three.js / @pixiv/three-vrm / simplex-noise 通过 CDN importmap 加载 (`index.html:10`)
+- **API 适配器** — `frontend/static/js/api-adapter.js`: `window.API` 单例, 统一 `fetch` + 15s 超时 + `AbortController`
+  - 文字: `API.sendMessage(query, sessionId)`
+  - 语音: `API.sendVoice(audioBlob, text, sessionId)` (FormData)
+  - 景区 CRUD: `API.getArea() / getSpots() / createSpot() / ...`
+  - VRM: `API.getVRMModels() / switchVRMModel(path)`
+  - 响应用 `_unwrapScenic()` 解包 `{success, data, error}` 格式
+- **页面结构** — `index.html`(1172行, 主页面 + VRM + 聊天 + 地图) + `dashboard.html`(数据大屏) + `admin.html`(管理后台)
+- **VRM 渲染** — Three.js canvas 内嵌在 `.ai-avatar-inner` 容器, 通过 BlendShape 驱动口型
+
+---
+
+## 测试模式
+
+| 模式 | 示例 | 说明 |
+|------|------|------|
+| **ASGITransport 免网络测试** | `test_chat_chain.py` | `httpx.AsyncClient(transport=ASGITransport(app=main.app))` 直调 FastAPI, 不启动 Uvicorn |
+| **依赖 mock** | `test_chat_chain.py:TestMultimodalChat` | `unittest.mock.patch` + `AsyncMock` 模拟外部 API |
+| **conftest 预加载 mock** | `tests/conftest.py` | 测试启动前 mock `python_multipart` 和 `cachetools` (避免 CI 环境缺少可选依赖) |
+| **pytest-asyncio** | `pyproject.toml` | `asyncio_mode = "auto"`, 测试方法加 `@pytest.mark.asyncio` |
+
+---
+
+## 常见陷阱
+
+- **`conf.yaml` 仅作参考, 不生效** — 所有运行时配置从 `.env` 经由 `pydantic-settings` 加载. 改 `conf.yaml` 没用
+- **FunASR 模型加载阻塞事件循环** — `AutoModel()` 是同步操作, 必须用 `asyncio.to_thread` 包装 (`_run_sync()` 方法)
+- **Edge-TTS 需要网络** — 无网络时自动降级 pyttsx3. Windows 下 pyttsx3 依赖 SAPI5 驱动, Linux 需 espeak
+- **Streaming SSE 30s 超时** — `stream_tts()` 有总时长熔断和首 token 5s 超时, 超时后截断已有内容
+- **路径规范** — Windows 下在 Bash 命令中使用 `c:/Users/...` (正斜杠) 而非 `C:\Users` (反斜杠)
+- **VRM 模型文件** — `frontend/static/vrm/` 下有 `AliciaSolid.vrm`(带纹理外置) 和 `AliciaSolid_fixed.vrm`(修复版)
+- **TTS 磁盘缓存** — `data/cache/tts/` 目录按 MD5 前缀二级分目录, TTL 24h, 启动时自动清理过期缓存
+- **路径遍历防护** — `vrm.py` 和 `chat.py` 中的文件路径用 `Path.resolve()` + `relative_to()` 校验, 修改时不要绕过
+
+---
+
 ## 质量门禁
 
 | 要求 | 阈值 | 验证方式 |

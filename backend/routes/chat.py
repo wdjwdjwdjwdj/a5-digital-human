@@ -182,6 +182,11 @@ class MultimodalRequest(BaseModel):
     @classmethod
     def validate_base64(cls, v: str) -> str:
         """校验 base64 字符串格式，防止注入非 base64 内容。"""
+        # 去除换行符和空白（RFC 2045 MIME 规范允许每76字符插入换行）
+        v = v.replace("\n", "").replace("\r", "").replace(" ", "")
+        # 去除可能的 data: 前缀
+        if v.startswith("data:") and "," in v:
+            v = v.split(",", 1)[1]
         # base64 仅允许 A-Za-z0-9+/= 字符
         if not re.match(r"^[A-Za-z0-9+/]*={0,2}$", v):
             raise ValueError("非法的 base64 编码格式")
@@ -232,8 +237,11 @@ async def multimodal_chat(req: MultimodalRequest) -> dict:
     # 剥离情绪标签，TTS 用纯净文本
     clean_reply, emotion = _strip_emotion_tag(reply)
 
-    # 持久化对话记录
-    await chat_repo.save_conversation(req.query, reply, provider="qwen-vl", session_id=req.session_id)
+    # 持久化对话记录（含满意度评分）
+    sat = _EMOTION_SATISFACTION_MAP.get(emotion) if emotion else None
+    await chat_repo.save_conversation(
+        req.query, reply, provider="qwen-vl", session_id=req.session_id, satisfaction=sat
+    )
 
     # TTS 合成音频
     audio_url = _save_audio(await tts_manager.synthesize(clean_reply))
@@ -359,6 +367,28 @@ async def voice_chat(
     audio_url = _save_audio(await tts_manager.synthesize(clean_reply))
 
     return {"reply": reply, "audio_url": audio_url, "asr_text": query, "emotion": emotion}
+
+
+@router.get("/history")
+async def get_history(session_id: str = "default", limit: int = 10) -> dict:
+    """获取对话历史记录。
+
+    Args:
+        session_id: 会话 ID
+        limit: 返回的最大记录数
+
+    Returns:
+        {"success": bool, "data": list[dict]}
+    """
+    try:
+        if len(session_id) > 64:
+            session_id = session_id[:64]
+        limit = max(1, min(limit, 100))
+        history = await chat_repo.get_history(session_id, limit)
+        return {"success": True, "data": history}
+    except Exception as e:
+        logger.error("[Chat] 获取对话历史失败: %s", e, exc_info=True)
+        return {"success": False, "data": [], "error": str(e)}
 
 
 @router.post("/stream")

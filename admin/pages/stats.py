@@ -9,11 +9,13 @@ from typing import Any
 
 import streamlit as st
 
+from backend.config import settings
 from backend.repository.chat_repo import chat_repo
 
 logger = logging.getLogger(__name__)
 
-_DB_PATH = Path("data/conversations.db")
+# 从配置统一读取数据库路径，避免硬编码
+_DB_PATH = Path(settings.database_url.replace("sqlite:///", "").lstrip("./"))
 
 
 def render_page() -> None:

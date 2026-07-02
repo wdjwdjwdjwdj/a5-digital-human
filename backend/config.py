@@ -9,10 +9,16 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
     # ===== LLM =====
-    llm_provider: str = "deepseek"
+    llm_provider: str = "sensenova"  # deepseek / sensenova
     deepseek_api_key: str = ""
     deepseek_base_url: str = "https://api.deepseek.com/v1"
     deepseek_model: str = "deepseek-chat"
+
+    # ===== SenseNova（日日新）=====
+    sensenova_api_key: str = ""
+    sensenova_model: str = "sensenova-6.7-flash-lite"
+    sensenova_base_url: str = "https://token.sensenova.cn/v1"
+    sensenova_timeout: float = 5.0  # 比赛要求：5 秒超时阈值
 
     # ===== 降级 LLM（DeepSeek 连续故障时自动切换）=====
     fallback_llm_provider: str = "qwen"  # 预留字段，当前由 fallback_llm_model 决定模型名

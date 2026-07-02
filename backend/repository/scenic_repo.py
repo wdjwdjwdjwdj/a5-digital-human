@@ -90,6 +90,28 @@ CREATE TABLE IF NOT EXISTS scenic_config (
 )
 """
 
+_CREATE_DAILY_OVERVIEW_TABLE = """
+CREATE TABLE IF NOT EXISTS daily_overview (
+    date TEXT PRIMARY KEY,
+    today_visitors INTEGER NOT NULL DEFAULT 0,
+    current_visitors INTEGER NOT NULL DEFAULT 0,
+    satisfaction REAL NOT NULL DEFAULT 96.8,
+    daily_visits_json TEXT NOT NULL DEFAULT '[]',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+"""
+
+_CREATE_SPOT_DAILY_STATS_TABLE = """
+CREATE TABLE IF NOT EXISTS spot_daily_stats (
+    spot_id TEXT NOT NULL,
+    date TEXT NOT NULL,
+    visitors INTEGER NOT NULL DEFAULT 0,
+    ai_chats INTEGER NOT NULL DEFAULT 0,
+    status TEXT NOT NULL DEFAULT 'online',
+    PRIMARY KEY (spot_id, date)
+)
+"""
+
 _CONFIG_DEFAULTS: dict[str, str] = {
     "scenic_name": "灵山胜境",
     "guide_name": "灵灵",
@@ -333,6 +355,8 @@ class ScenicRepository:
             await asyncio.to_thread(self._execute, _CREATE_ROUTES_TABLE)
             await asyncio.to_thread(self._execute, _CREATE_ROUTE_SPOTS_TABLE)
             await asyncio.to_thread(self._execute, _CREATE_CONFIG_TABLE)
+            await asyncio.to_thread(self._execute, _CREATE_DAILY_OVERVIEW_TABLE)
+            await asyncio.to_thread(self._execute, _CREATE_SPOT_DAILY_STATS_TABLE)
             logger.info("[ScenicRepo] 数据库表初始化完成")
         except Exception:
             logger.error("[ScenicRepo] 数据库表初始化失败: %s", traceback.format_exc())
@@ -633,8 +657,136 @@ class ScenicRepository:
             logger.error("[ScenicRepo] 查询路线详情失败: %s", traceback.format_exc())
             return None
 
+    async def get_daily_overview(self) -> dict:
+        """获取当日全局统计概览（按天缓存，同一天返回相同数据）。
+
+        Returns:
+            {today_visitors, current_visitors, satisfaction, daily_visits}
+        """
+        import json as _json
+
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        # 尝试读取缓存
+        cached = await asyncio.to_thread(
+            self._fetchone,
+            "SELECT * FROM daily_overview WHERE date = ?",
+            (today,),
+        )
+        if cached:
+            return {
+                "today_visitors": cached["today_visitors"],
+                "current_visitors": cached["current_visitors"],
+                "satisfaction": cached["satisfaction"],
+                "daily_visits": _json.loads(cached["daily_visits_json"]),
+            }
+
+        # 首次请求 → 生成当日数据
+        spot_cnt_row = await asyncio.to_thread(
+            self._fetchone, "SELECT COUNT(*) as cnt FROM scenic_spots"
+        )
+        spot_n = (spot_cnt_row or {}).get("cnt", 0) or 16
+
+        today_visitors = spot_n * random.randint(50, 150)
+        current_visitors = random.randint(200, 800)
+        satisfaction = round(random.uniform(94.0, 98.5), 1)
+
+        # 近 7 日趋势：前 6 天固定随机，第 7 天 = today_visitors
+        daily_visits: list[dict] = []
+        for i in range(6, 0, -1):
+            day = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
+            daily_visits.append({
+                "date": day,
+                "visitors": random.randint(800, 2000),
+                "conversations": random.randint(30, 120),
+            })
+        daily_visits.append({
+            "date": today,
+            "visitors": today_visitors,
+            "conversations": random.randint(80, 200),
+        })
+
+        daily_visits_json = _json.dumps(daily_visits)
+
+        # 写入缓存
+        await asyncio.to_thread(
+            self._execute,
+            "INSERT OR REPLACE INTO daily_overview "
+            "(date, today_visitors, current_visitors, satisfaction, daily_visits_json) "
+            "VALUES (?, ?, ?, ?, ?)",
+            (today, today_visitors, current_visitors, satisfaction, daily_visits_json),
+        )
+        logger.info("[ScenicRepo] 已生成 %s 全局统计缓存", today)
+
+        return {
+            "today_visitors": today_visitors,
+            "current_visitors": current_visitors,
+            "satisfaction": satisfaction,
+            "daily_visits": daily_visits,
+        }
+
+    async def get_spot_daily_stats(self) -> list[dict]:
+        """获取当日各景点模拟统计数据（按天缓存）。
+
+        Returns:
+            [{spot_id, name, visitors, ai_chats, status}, ...]
+        """
+        today = datetime.now().strftime("%Y-%m-%d")
+
+        # 检查是否已生成
+        existing = await asyncio.to_thread(
+            self._fetchall,
+            "SELECT * FROM spot_daily_stats WHERE date = ?",
+            (today,),
+        )
+        if existing:
+            # 补充景点名称
+            spots = await self.get_spots()
+            name_map = {s["spot_id"]: s["name"] for s in spots}
+            result = []
+            for row in existing:
+                result.append({
+                    "spot_id": row["spot_id"],
+                    "name": name_map.get(row["spot_id"], row["spot_id"]),
+                    "visitors": row["visitors"],
+                    "ai_chats": row["ai_chats"],
+                    "status": row["status"],
+                })
+            return result
+
+        # 首次请求 → 为每个景点生成数据
+        spots = await self.get_spots()
+        stats_list = []
+        for spot in spots:
+            rating = spot.get("rating", 4.5) or 4.5
+            # 高评分景点吸引更多游客
+            base_visitors = int(rating * random.randint(180, 350))
+            visitors = max(50, base_visitors)
+            ai_chats = random.randint(20, 220)
+            # 5% 概率离线
+            status = "offline" if random.random() < 0.05 else "online"
+
+            await asyncio.to_thread(
+                self._execute,
+                "INSERT OR REPLACE INTO spot_daily_stats "
+                "(spot_id, date, visitors, ai_chats, status) VALUES (?, ?, ?, ?, ?)",
+                (spot["spot_id"], today, visitors, ai_chats, status),
+            )
+            stats_list.append({
+                "spot_id": spot["spot_id"],
+                "name": spot["name"],
+                "visitors": visitors,
+                "ai_chats": ai_chats,
+                "status": status,
+            })
+
+        logger.info("[ScenicRepo] 已生成 %s 景点级统计缓存 (%d 条)", today, len(stats_list))
+        return stats_list
+
     async def get_stats(self) -> dict:
-        """获取景区统计数据（含 dashboard 大屏完整数据）。
+        """获取景区统计信息（全局概览 + 真实计数）。
+
+        全局客流/满意度等数据按天缓存，保证同一天内各页面看到一致数据。
 
         Returns:
             {spot_count, activity_count, route_count, today_visitors,
@@ -663,10 +815,12 @@ class ScenicRepository:
             if route_cnt:
                 result["route_count"] = route_cnt["cnt"]
 
-            # ── 模拟客流数据 ──
-            spot_n = result["spot_count"] or 16
-            result["today_visitors"] = spot_n * random.randint(50, 150)
-            result["current_visitors"] = random.randint(200, 800)
+            # ── 全局概览（按天缓存） ──
+            overview = await self.get_daily_overview()
+            result["today_visitors"] = overview["today_visitors"]
+            result["current_visitors"] = overview["current_visitors"]
+            result["satisfaction"] = overview["satisfaction"]
+            result["daily_visits"] = overview["daily_visits"]
 
             # ── AI 对话总数（从 conversations 表查询，失败时模拟） ──
             try:
@@ -678,16 +832,6 @@ class ScenicRepository:
             except Exception:
                 result["ai_conversations"] = random.randint(800, 2000)
 
-            # ── 近 7 日客流趋势（模拟数据） ──
-            daily_visits: list[dict] = []
-            for i in range(6, -1, -1):
-                day = (datetime.now() - timedelta(days=i)).strftime("%Y-%m-%d")
-                daily_visits.append({
-                    "date": day,
-                    "visitors": random.randint(800, 2000),
-                    "conversations": random.randint(30, 120),
-                })
-            result["daily_visits"] = daily_visits
         except Exception:
             logger.error("[ScenicRepo] 查询统计失败: %s", traceback.format_exc())
         return result
